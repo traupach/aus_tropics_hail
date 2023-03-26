@@ -1,6 +1,6 @@
 import os 
 import shutil
-import numpy as np
+import numpy as npd
 import xarray
 
 def sim_directory(lat, lon, year, month, day, hour, minute, sims_dir):
@@ -28,10 +28,8 @@ def set_up_WRF(lat, lon, year, month, day, hour, minute, start_time, end_time, w
     # WPS setup. Link executables + data files, copy and update namelist.
     if not os.path.exists(f'{sim_dir}/WPS'):
         os.mkdir(f'{sim_dir}/WPS')
-        os.system(f'ln -sf {wrf_dir}/WPS/Vtable {sim_dir}/WPS/Vtable')
-        os.system(f'ln -sf {wrf_dir}/WPS/geogrid {sim_dir}/WPS/')
-        os.system(f'ln -sf {wrf_dir}/WPS/ungrib {sim_dir}/WPS/')
-        os.system(f'ln -sf {wrf_dir}/WPS/metgrid {sim_dir}/WPS/')
+        os.system(f'ln -sf {wrf_dir}/WPS/* {sim_dir}/WPS/')
+        os.system(f'rm -f {sim_dir}/WPS/namelist.wps')
         shutil.copy(src=f'{wrf_dir}/WPS/namelist.wps', dst=f'{sim_dir}/WPS/namelist.wps')
 
         os.system(f'sed -i s/start_date.*$/"start_date = \'{start_time}\', \'{start_time}\', \'{start_time}\',"/g {sim_dir}/WPS/namelist.wps')
@@ -51,9 +49,9 @@ def set_up_WRF(lat, lon, year, month, day, hour, minute, start_time, end_time, w
         if not os.path.exists(f'{sim_dir}/WRF/{mp}'):
             os.mkdir(f'{sim_dir}/WRF/{mp}')
             
-            os.system(f'ln -sf {wrf_dir}/WRF/run/* {sim_dir}/WRF/{mp}/')
-            os.system(f'rm {sim_dir}/WRF/{mp}/namelist.* {sim_dir}/WRF/{mp}/*.sh')
-            shutil.copy(src=f'{wrf_dir}/WRF/run/namelist.input', dst=f'{sim_dir}/WRF/{mp}/namelist.input')
+            os.system(f'ln -sf {wrf_dir}/WRF/* {sim_dir}/WRF/{mp}/')
+            os.system(f'rm -f {sim_dir}/WRF/{mp}/namelist.input')
+            shutil.copy(src=f'{wrf_dir}/WRF/namelist.input', dst=f'{sim_dir}/WRF/{mp}/namelist.input')
 
             os.system(f'sed -i s/start_year.*$/"start_year = {start_time[0:4]}, {start_time[0:4]}, {start_time[0:4]},/g" {sim_dir}/WRF/{mp}/namelist.input')
             os.system(f'sed -i s/start_month.*$/"start_month = {start_time[5:7]}, {start_time[5:7]}, {start_time[5:7]},/g" {sim_dir}/WRF/{mp}/namelist.input')
@@ -66,3 +64,52 @@ def set_up_WRF(lat, lon, year, month, day, hour, minute, start_time, end_time, w
             os.system(f'sed -i s/mp_physics.*$/"mp_physics = {mp_schemes[mp]}, {mp_schemes[mp]}, {mp_schemes[mp]},/g" {sim_dir}/WRF/{mp}/namelist.input')
         else:
             print(f'Skipping existing WRF/{mp}...')
+            
+def open_kimberley_data(hail_detections, sims_dir, spinup_start_idx=144, mps=['NSSL', 'MY2', 'P3-3M']):
+    """
+    Open the data for the Kimberley hail experiments.
+    
+    Arguments:
+        hail_detections: Hail detection times to open for.
+        sims_dir: The base directory for the model outputs.
+        spinup_start: The index of the first timestep in the non-spinup simulation time.
+        mps: The names of the microphysics schemes to read in.
+        
+    Returns: A combined dataset.
+    """
+    
+    all_dat = []
+
+    for i, row in hail_detections.iterrows():
+        base_dr = sim_directory(lat=row.LAT, lon=row.LON, year=row.YEAR, month=row.MONTH, day=row.DAY, 
+                                hour=row.HOUR, minute=row.MIN, sims_dir=sims_dir)
+
+        for mp in mps:
+            dr = f'{base_dr}/WRF/{mp}/'
+            print(dr)
+
+            event_basic = xarray.open_mfdataset(f'{dr}/basic*.nc', parallel=True)
+            event_conv = xarray.open_mfdataset(f'{dr}/conv*.nc', parallel=True) 
+            event_dat = xarray.merge([event_basic, event_conv])
+
+            # Add event information.
+            event_dat['event'] = i+1
+            event_dat = event_dat.expand_dims('event')
+            event_dat = event_dat.assign_coords({'event': event_dat.event})
+
+            # Add microphysics information.
+            event_dat['mp_scheme'] = mp
+            event_dat = event_dat.expand_dims('mp_scheme')
+            event_dat = event_dat.assign_coords({'mp_scheme': event_dat.mp_scheme})
+
+            # Remove the spin-up time from the event.
+            event_dat = event_dat.isel(time=slice(spinup_start_idx, None))
+            event_dat = event_dat.sortby('time')
+            event_dat['timestep'] = ('time', np.arange(len(event_dat.time)))
+            event_dat = event_dat.swap_dims({'time': 'timestep'}).reset_coords()
+            all_dat.append(event_dat)
+
+    all_dat = [x.stack({'event_scheme': ['event', 'mp_scheme']}) for x in all_dat]
+    dat = xarray.combine_nested(all_dat, concat_dim='event_scheme', combine_attrs='drop_conflicts').unstack('event_scheme')
+    
+    return dat

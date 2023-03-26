@@ -14,16 +14,16 @@
 #PBS -N WPS_job
 
 module use /g/data3/hh5/public/modules
-module load conda/analysis3-unstable
+module load conda/analysis3-22.07
 
 # Run geogrid.
-geogrid/geogrid.exe
+./geogrid/geogrid.exe
 
 # Prepare ERA5 data into a GRIB file.
 era5grib wrf --namelist namelist.wps --geo geo_em.d01.nc --output GRIBFILE.AAA
 
 # Run ungrib to extract GRIB data.
-ungrib/ungrib.exe 
+./ungrib.exe 
 
 # Run metgrid to interpolate input data.
-metgrid/metgrid.exe
+./metgrid/metgrid.exe

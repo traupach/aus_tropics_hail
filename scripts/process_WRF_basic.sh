@@ -2,7 +2,7 @@
 # Extract basic variables from wrfout_d03* files.
 
 #PBS -q normal
-#PBS -P w42
+#PBS -P or60
 #PBS -l storage=gdata/up6+gdata/hh5
 #PBS -l ncpus=28
 #PBS -l walltime=00:45:00

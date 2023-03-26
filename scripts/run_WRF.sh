@@ -1,9 +1,9 @@
 #!/bin/bash
 
 #PBS -q normal
-#PBS -P w42
+#PBS -P or60
 #PBS -l storage=gdata/up6+gdata/hh5
-#PBS -l walltime=04:00:00
+#PBS -l walltime=06:00:00
 #PBS -l mem=96GB       
 #PBS -l ncpus=48
 #PBS -j oe
