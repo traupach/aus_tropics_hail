@@ -29,6 +29,6 @@ for filename in files:
     conv = parcel.min_conv_properties(dat=dat, vert_dim='bottom_top')
     outfile = filename.replace('basic_', 'conv_')    
     comp = dict(zlib=True, shuffle=True, complevel=5)
-    encoding = {var: comp for var in dat.data_vars}
-    conv.to_netcdf(outfile)
+    encoding = {var: comp for var in conv.data_vars}
+    conv.to_netcdf(outfile, encoding=encoding)
     del dat, conv 

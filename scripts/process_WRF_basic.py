@@ -43,6 +43,11 @@ for filename in files:
                           'hail_max2d': wrf.getvar(nc, 'HAIL_MAX2D', timeidx=wrf.ALL_TIMES, squeeze=False),
                           'graupel_max': wrf.getvar(nc, 'GRPL_MAX', timeidx=wrf.ALL_TIMES, squeeze=False)})
 
+    assert not np.any(dat.pressure == dat.pressure.attrs['_FillValue'])
+    assert not np.any(dat.pressure == dat.pressure.attrs['missing_value'])
+    del dat.pressure.attrs['_FillValue']
+    del dat.pressure.attrs['missing_value']
+    
     dat['specific_humidity'] = metpy.calc.specific_humidity_from_mixing_ratio(dat.mixing_ratio).metpy.dequantify()
     dat = dat.rename({'Time': 'time', 'XLONG': 'longitude', 'XLAT': 'latitude'})
     dat = dat.reset_coords().drop('XTIME')
@@ -58,8 +63,8 @@ for filename in files:
     for k in dat.keys():
         if 'projection' in dat[k].attrs:
             del dat[k].attrs['projection']
-    
+
     comp = dict(zlib=True, shuffle=True, complevel=5)
     encoding = {var: comp for var in dat.data_vars}
-    dat.to_netcdf(outfile)
+    dat.to_netcdf(outfile, encoding=encoding)
     del dat

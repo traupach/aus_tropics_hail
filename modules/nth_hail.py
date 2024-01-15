@@ -1,7 +1,11 @@
-import os 
+import numpy as np
+import warnings
 import shutil
-import numpy as npd
 import xarray
+import os 
+import matplotlib.pyplot as plt
+import seaborn as sns
+import cartopy.crs as ccrs
 
 def sim_directory(lat, lon, year, month, day, hour, minute, sims_dir):
     return f'{sims_dir}/lat_{lat}_lon_{lon}_{year}-{month}-{day}_{hour:02}:{minute:02}'
@@ -65,17 +69,17 @@ def set_up_WRF(lat, lon, year, month, day, hour, minute, start_time, end_time, w
         else:
             print(f'Skipping existing WRF/{mp}...')
             
-def open_kimberley_data(hail_detections, sims_dir, spinup_start_idx=144, mps=['NSSL', 'MY2', 'P3-3M']):
+def open_kimberley_data(hail_detections, sims_dir, mps=['NSSL', 'MY2', 'P3-3M'], domain='d03'):
     """
     Open the data for the Kimberley hail experiments.
     
     Arguments:
         hail_detections: Hail detection times to open for.
         sims_dir: The base directory for the model outputs.
-        spinup_start: The index of the first timestep in the non-spinup simulation time.
         mps: The names of the microphysics schemes to read in.
+        domain: The name of the WRF domain to read and match with other data.
         
-    Returns: A combined dataset.
+    Returns: A combined dataset of data.
     """
     
     all_dat = []
@@ -86,30 +90,65 @@ def open_kimberley_data(hail_detections, sims_dir, spinup_start_idx=144, mps=['N
 
         for mp in mps:
             dr = f'{base_dr}/WRF/{mp}/'
-            print(dr)
-
+            
+            # Open basic data.
             event_basic = xarray.open_mfdataset(f'{dr}/basic*.nc', parallel=True)
+            event_basic = event_basic[['hailcast_diam_max', 'latitude', 'longitude']]
+            
+            # Open conv data.
             event_conv = xarray.open_mfdataset(f'{dr}/conv*.nc', parallel=True) 
-            event_dat = xarray.merge([event_basic, event_conv])
-
+            
+            # Open pressure-level interpolated fields.
+            event_pressure_level = xarray.open_mfdataset(f'{dr}/pressure_level*.nc', parallel=True)
+            event_pressure_level = event_pressure_level.rename({x: f'{x}_at_p' for x in event_pressure_level.keys()})
+            
+            event_dat = xarray.merge([event_conv, event_pressure_level, event_basic])
+            del event_conv, event_pressure_level, event_basic
+            
             # Add event information.
             event_dat['event'] = i+1
-            event_dat = event_dat.expand_dims('event')
             event_dat = event_dat.assign_coords({'event': event_dat.event})
+            event_dat = event_dat.expand_dims('event')
 
             # Add microphysics information.
             event_dat['mp_scheme'] = mp
-            event_dat = event_dat.expand_dims('mp_scheme')
             event_dat = event_dat.assign_coords({'mp_scheme': event_dat.mp_scheme})
+            event_dat = event_dat.expand_dims('mp_scheme')
 
-            # Remove the spin-up time from the event.
-            event_dat = event_dat.isel(time=slice(spinup_start_idx, None))
+            # Make times event-independent.
             event_dat = event_dat.sortby('time')
             event_dat['timestep'] = ('time', np.arange(len(event_dat.time)))
             event_dat = event_dat.swap_dims({'time': 'timestep'}).reset_coords()
             all_dat.append(event_dat)
+            del event_dat
 
     all_dat = [x.stack({'event_scheme': ['event', 'mp_scheme']}) for x in all_dat]
     dat = xarray.combine_nested(all_dat, concat_dim='event_scheme', combine_attrs='drop_conflicts').unstack('event_scheme')
     
     return dat
+
+def plot_hail_simulations(dat, figsize=(9.6, 3)):
+    """
+    Plot where hail was and was not simulated, by MP scheme and event.
+    
+    Arguments:
+        dat: Containing event_includes_hail, event_latitude, event_longitude, mp_scheme, and event.
+        figsize: Figure width x height.
+    """
+    
+    sims = dat[['event_includes_hail', 'event_latitude', 'event_longitude']].to_dataframe()
+    sims.loc[sims.mp_scheme=='MY2', 'event_latitude'] += 0.2
+    sims.loc[sims.mp_scheme=='MY2', 'event_longitude'] += 0.4
+    sims.loc[sims.mp_scheme=='NSSL', 'event_latitude'] += 0.2
+    sims.loc[sims.mp_scheme=='NSSL', 'event_longitude'] -= 0.4
+    sims = sims.drop(columns=['event', 'mp_scheme']).reset_index()
+    sims = sims.rename(columns={'event_includes_hail': 'Hail', 'mp_scheme': 'MP scheme'})
+
+    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.PlateCarree()}, figsize=figsize)
+    sns.scatterplot(data=sims, x='event_longitude', y='event_latitude', s=50, markers=['X', 'o'],
+                    hue='MP scheme', style='Hail', ax=ax, transform=ccrs.PlateCarree())
+    ax.coastlines()
+    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, alpha=0.5)
+    gl.top_labels = gl.right_labels = False
+    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1.05))
+    plt.show()
