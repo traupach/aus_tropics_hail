@@ -14,7 +14,7 @@ from netCDF4 import Dataset
 import modules.parcel_functions as parcel
 from dask.distributed import Client
 
-parcel.load_moist_adiabat_lookups(base_dir='/g/data/w42/tr2908/aus400_hail/')
+parcel.load_moist_adiabat_lookups(base_dir='~/')
 
 files = sorted(glob('basic_params*.nc'))
 for filename in files:

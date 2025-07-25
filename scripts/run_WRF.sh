@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #PBS -q normal
-#PBS -P up6
-#PBS -l storage=gdata/up6+gdata/hh5+gdata/w42
+#PBS -P li18
+#PBS -l storage=gdata/li18
 #PBS -l walltime=06:00:00
 #PBS -l mem=96GB       
 #PBS -l ncpus=48

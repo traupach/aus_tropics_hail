@@ -14,7 +14,7 @@ import pandas as pd
 from glob import glob
 from netCDF4 import Dataset
 
-files = glob('wrfout_d03*')
+files = sorted(glob('wrfout_d03*'))[-3:]
 for filename in files:
     print(filename)
     nc = Dataset(filename)
@@ -50,7 +50,7 @@ for filename in files:
     
     dat['specific_humidity'] = metpy.calc.specific_humidity_from_mixing_ratio(dat.mixing_ratio).metpy.dequantify()
     dat = dat.rename({'Time': 'time', 'XLONG': 'longitude', 'XLAT': 'latitude'})
-    dat = dat.reset_coords().drop('XTIME')
+    dat = dat.reset_coords().drop_vars('XTIME')
     dat = dat.assign_coords({'south_north': dat.south_north,
                              'west_east': dat.west_east,
                              'bottom_top': dat.bottom_top})
