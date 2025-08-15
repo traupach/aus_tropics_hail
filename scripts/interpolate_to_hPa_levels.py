@@ -1,18 +1,15 @@
-## Use xarray_parcel to interpolate variables in basic_params* files in the current directory
-## to pressure levels, and write output files pressure_level_*.nc.
+"""Use xarray_parcel to interpolate variables in basic_params* files in the current directory to pressure levels, and write pressure_level_*.nc."""
 
 import sys
-import os
-sys.path.append(f'{os.path.expanduser("~")}/git/xarray_parcel/')
+from pathlib import Path
 
-import dask
-import xarray
-import numpy as np
-import pandas as pd
+sys.path.append(Path('~/git/xarray_parcel/').expanduser())
+
 from glob import glob
-from netCDF4 import Dataset
+
 import modules.parcel_functions as parcel
-from dask.distributed import Client
+import numpy as np
+import xarray
 
 parcel.load_moist_adiabat_lookups(base_dir='~/')
 variables = ['pressure', 'temperature', 'rh', 'u', 'v', 'w', 'z', 'z_agl', 'mixing_ratio', 'dbz', 'td', 'specific_humidity']
@@ -22,29 +19,28 @@ for filename in files:
     dat = xarray.open_dataset(filename)
     dat = dat.load()
     dat = dat.chunk({'time': 1, 'bottom_top': -1, 'west_east': -1, 'south_north': -1})
-    
+
     # Select only variables with bottom_top coordinates.
-    
     dat = dat[variables]
     levels = []
-    
+
     # Loop through pressure levels and interpolate to each using log(pressure) as the vertical coordinate.
     for p in np.arange(1000, 100, step=-50):
         level = parcel.log_interp(x=dat, coords=dat.pressure, at=p, dim='bottom_top')
         level = level.expand_dims({'pressure_level': [p]})
-        levels.append(level) 
-        
+        levels.append(level)
+
     levels = xarray.merge(levels)
     levels.pressure_level.attrs['long_name'] = 'Interpolated pressure level'
     levels.pressure_level.attrs['units'] = 'hPa'
-    
+
     # Copy attributes and add note.
     for v in variables:
         levels[v].attrs = dat[v].attrs
         levels[v].attrs['note'] = 'Interpolated using xarray_parcel log_interp to pressure levels'
-    
-    outfile = filename.replace('basic_', 'pressure_level_')    
-    comp = dict(zlib=True, shuffle=True, complevel=5)
+
+    outfile = filename.replace('basic_', 'pressure_level_')
+    comp = {'zlib': True, 'shuffle': True, 'complevel': 5}
     encoding = {var: comp for var in levels.data_vars}
     levels.to_netcdf(outfile)
     del dat

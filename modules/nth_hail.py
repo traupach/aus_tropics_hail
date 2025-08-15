@@ -9,8 +9,7 @@ import xarray
 
 
 def sim_directory(lat, lon, year, month, day, hour, minute, sims_dir):  # noqa: D103
-    return f'{sims_dir}/lat_{lat}_lon_{lon}_{year}-{month}-{day}_{hour:02}:{minute:02}'
-
+    return f'{sims_dir}/lat_{lat:.3f}_lon_{lon:.3f}_{year:.0f}-{month:02.0f}-{day:02.0f}_{hour:02.0f}:{minute:02.0f}'
 
 def set_up_WRF(lat, lon, year, month, day, hour, minute, start_time, end_time, namelist_dir, wrf_dir, sims_dir, mp_schemes=None):
     """Set up directories ready for WPS and WRF runs for a given event, including updating namelist files.
@@ -68,19 +67,19 @@ def set_up_WRF(lat, lon, year, month, day, hour, minute, start_time, end_time, n
 
             os.system(
                 f'sed -i s/start_year.*$/"start_year = {start_time[0:4]}, {start_time[0:4]}'
-                f', {start_time[0:4]},/g" {sim_dir}/WRF/{mp}/namelist.input'
+                f', {start_time[0:4]},/g" {sim_dir}/WRF/{mp}/namelist.input',
             )
             os.system(
                 f'sed -i s/start_month.*$/"start_month = {start_time[5:7]}, {start_time[5:7]}'
-                f', {start_time[5:7]},/g" {sim_dir}/WRF/{mp}/namelist.input'
+                f', {start_time[5:7]},/g" {sim_dir}/WRF/{mp}/namelist.input',
             )
             os.system(
                 f'sed -i s/start_day.*$/"start_day = {start_time[8:10]}, {start_time[8:10]}'
-                f', {start_time[8:10]},/g" {sim_dir}/WRF/{mp}/namelist.input'
+                f', {start_time[8:10]},/g" {sim_dir}/WRF/{mp}/namelist.input',
             )
             os.system(
                 f'sed -i s/start_hour.*$/"start_hour = {start_time[11:13]}, {start_time[11:13]}'
-                f', {start_time[11:13]},/g" {sim_dir}/WRF/{mp}/namelist.input'
+                f', {start_time[11:13]},/g" {sim_dir}/WRF/{mp}/namelist.input',
             )
             os.system(f'sed -i s/end_year.*$/"end_year = {end_time[0:4]}, {end_time[0:4]}, {end_time[0:4]},/g" {sim_dir}/WRF/{mp}/namelist.input')
             os.system(f'sed -i s/end_month.*$/"end_month = {end_time[5:7]}, {end_time[5:7]}, {end_time[5:7]},/g" {sim_dir}/WRF/{mp}/namelist.input')

@@ -1,18 +1,14 @@
-## Use xarray_parcel to calculate convective properties for basic_params* files in the current directory
-## and write output files conv_properties_*.nc.
+"""Use xarray_parcel to calculate convective properties for basic_params* files in the current directory to conv_properties_*.nc."""
 
 import sys
-import os
-sys.path.append(f'{os.path.expanduser("~")}/git/xarray_parcel/')
+from pathlib import Path
 
-import dask
-import xarray
-import numpy as np
-import pandas as pd
+sys.path.append(Path('~/git/xarray_parcel/').expanduser())
+
 from glob import glob
-from netCDF4 import Dataset
+
 import modules.parcel_functions as parcel
-from dask.distributed import Client
+import xarray
 
 parcel.load_moist_adiabat_lookups(base_dir='~/')
 
@@ -25,10 +21,10 @@ for filename in files:
     dat['surface_wind_u'] = dat.wind_u.isel(bottom_top=0)
     dat['surface_wind_v'] = dat.wind_v.isel(bottom_top=0)
     dat['wind_height_above_surface'] = dat.z_agl
-    
+
     conv = parcel.min_conv_properties(dat=dat, vert_dim='bottom_top')
-    outfile = filename.replace('basic_', 'conv_')    
-    comp = dict(zlib=True, shuffle=True, complevel=5)
+    outfile = filename.replace('basic_', 'conv_')
+    comp = {'zlib': True, 'shuffle': True, 'complevel': 5}
     encoding = {var: comp for var in conv.data_vars}
     conv.to_netcdf(outfile, encoding=encoding)
-    del dat, conv 
+    del dat, conv
