@@ -212,7 +212,19 @@ def plot_hail_simulations(dat, figsize=(9.6, 3)):
     plt.show()
 
 
-def comp_profiles(dat, variables, varnames, time_slice=slice(None, None), figsize=(12, 12), hail_colour='#EC18DE', nohail_colour='#05A703'):
+def comp_profiles(
+    dat,
+    variables,
+    varnames,
+    time_slice=slice(None, None),
+    figsize=(12, 12),
+    hail_colour='#EC18DE',
+    nohail_colour='#05A703',
+    file=None,
+    factor=1,
+    wspace=0.1,
+    hspace=0.32,
+):
     """Compare vertical profiles of seleted variables by hail/no hail.
 
     Args:
@@ -223,6 +235,10 @@ def comp_profiles(dat, variables, varnames, time_slice=slice(None, None), figsiz
         figsize: Figure size.
         hail_colour: Colour for hail profiles.
         nohail_colour: Colour for no-hail profiles.
+        file: Output file.
+        factor: Multiply mean and std by this factor before plotting.
+        wspace: Width spacing for subplots.
+        hspace: Height spacing for subplots.
 
     """
     means = dat.isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', 'event_includes_hail']).mean()
@@ -242,10 +258,13 @@ def comp_profiles(dat, variables, varnames, time_slice=slice(None, None), figsiz
     stats['min'] = stats['mean'] - stats['std']
     stats['max'] = stats['mean'] + stats['std']
 
+    stats['mean'] = stats['mean'] * factor
+    stats['std'] = stats['std'] * factor
+
     hail_cols = {False: nohail_colour, True: hail_colour}
 
     mps = stats['mp_scheme'].unique()
-    _, axs = plt.subplots(ncols=len(variables), nrows=len(mps), figsize=figsize)
+    fig, axs = plt.subplots(ncols=len(variables), nrows=len(mps), figsize=figsize, gridspec_kw={'wspace': wspace, 'hspace': hspace})
 
     for m, mp in enumerate(mps):
         for i, v in enumerate(variables):
@@ -296,10 +315,11 @@ def comp_profiles(dat, variables, varnames, time_slice=slice(None, None), figsiz
         Patch(facecolor=nohail_colour, label='No-hail-event std. dev. range', alpha=0.5),
     ]
 
-    axs[0, len(variables)-1].legend(handles=legend_elements, loc='center', fontsize='small')
-    sns.move_legend(axs[0, len(variables)-1], 'upper left', bbox_to_anchor=(1, 1))
+    fig.legend(handles=legend_elements, loc='lower center', fontsize='small', bbox_to_anchor=(0.5, -0.05))
 
-    plt.tight_layout()
+    if file is not None:
+        plt.savefig(file, dpi=300, bbox_inches='tight')
+
     plt.show()
 
 
@@ -424,5 +444,5 @@ def skew_T_comp(
 
     if file is not None:
         plt.savefig(file, dpi=300, bbox_inches='tight')
-    
+
     plt.show()
