@@ -45,13 +45,11 @@ for filename in files:
                           'qvapour': wrf.getvar(nc, 'QVAPOR', timeidx=wrf.ALL_TIMES, squeeze=False),
                           'qcloud': wrf.getvar(nc, 'QCLOUD', timeidx=wrf.ALL_TIMES, squeeze=False),
                           'qrain': wrf.getvar(nc, 'QRAIN', timeidx=wrf.ALL_TIMES, squeeze=False),
-                          'qice': wrf.getvar(nc, 'QICE', timeidx=wrf.ALL_TIMES, squeeze=False),
-                          'qsnow': wrf.getvar(nc, 'QSNOW', timeidx=wrf.ALL_TIMES, squeeze=False),
-                          'qgraup': wrf.getvar(nc, 'QGRAUP', timeidx=wrf.ALL_TIMES, squeeze=False)})
+                          'qice': wrf.getvar(nc, 'QICE', timeidx=wrf.ALL_TIMES, squeeze=False)})
 
-    for var in ['QHAIL', 'QNGRAUPEL', 'QNHAIL', 'QVGRAUPEL', 'QVHAIL']:
+    for var in ['QHAIL', 'QNGRAUPEL', 'QNHAIL', 'QVGRAUPEL', 'QVHAIL', 'QSNOW', 'QGRAUP', 'QIR', 'QIB']:
         if var in nc.variables:
-            n = xarray.Dataset({var.to_lower(): wrf.getvar(nc, var, timeidx=wrf.ALL_TIMES, squeeze=False)})
+            n = xarray.Dataset({var.lower(): wrf.getvar(nc, var, timeidx=wrf.ALL_TIMES, squeeze=False)})
             dat = xarray.merge([dat, n])
             del n
 

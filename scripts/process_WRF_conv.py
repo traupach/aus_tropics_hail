@@ -3,7 +3,7 @@
 import sys
 from pathlib import Path
 
-sys.path.append(Path('~/git/xarray_parcel/').expanduser())
+sys.path.append(str(Path('~/git/xarray_parcel/').expanduser()))
 
 from glob import glob
 

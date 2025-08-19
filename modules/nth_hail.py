@@ -6,10 +6,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import xarray
+from matplotlib import gridspec
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
+from matplotlib.ticker import ScalarFormatter
+from metpy.plots import SkewT
+from metpy.units import units
 
 
 def sim_directory(lat, lon, year, month, day, hour, minute, sims_dir):  # noqa: D103
     return f'{sims_dir}/lat_{lat:.3f}_lon_{lon:.3f}_{year:.0f}-{month:02.0f}-{day:02.0f}_{hour:02.0f}:{minute:02.0f}'
+
 
 def set_up_WRF(lat, lon, year, month, day, hour, minute, start_time, end_time, namelist_dir, wrf_dir, sims_dir, mp_schemes=None):
     """Set up directories ready for WPS and WRF runs for a given event, including updating namelist files.
@@ -31,7 +38,7 @@ def set_up_WRF(lat, lon, year, month, day, hour, minute, start_time, end_time, n
 
     """
     if mp_schemes is None:
-        mp_schemes = {'P3-3M': 53, 'MY2': 9, 'NSSL': 17, 'Thompson': 8}
+        mp_schemes = {'P3-3M': 53, 'MY2': 9, 'NSSL': 18, 'Thompson': 8}
 
     sim_dir = f'{sims_dir}/lat_{lat:.3f}_lon_{lon:.3f}_{year:.0f}-{month:02.0f}-{day:02.0f}_{hour:02.0f}:{minute:02.0f}'
     if not os.path.exists(sim_dir):
@@ -66,8 +73,7 @@ def set_up_WRF(lat, lon, year, month, day, hour, minute, start_time, end_time, n
             shutil.copy(src=f'{namelist_dir}/WRF/namelist.input', dst=f'{sim_dir}/WRF/{mp}/namelist.input')
 
             os.system(
-                f'sed -i s/start_year.*$/"start_year = {start_time[0:4]}, {start_time[0:4]}'
-                f', {start_time[0:4]},/g" {sim_dir}/WRF/{mp}/namelist.input',
+                f'sed -i s/start_year.*$/"start_year = {start_time[0:4]}, {start_time[0:4]}, {start_time[0:4]},/g" {sim_dir}/WRF/{mp}/namelist.input',
             )
             os.system(
                 f'sed -i s/start_month.*$/"start_month = {start_time[5:7]}, {start_time[5:7]}'
@@ -94,7 +100,7 @@ def set_up_WRF(lat, lon, year, month, day, hour, minute, start_time, end_time, n
             print(f'Skipping existing WRF/{mp}...')
 
 
-def open_kimberley_data(hail_detections, sims_dir, mps=None):
+def open_kimberley_data(hail_detections, sims_dir, mps=None, basic=True, conv=True, interp=True):
     """Open the data for the Kimberley hail experiments.
 
     Arguments:
@@ -102,34 +108,50 @@ def open_kimberley_data(hail_detections, sims_dir, mps=None):
         sims_dir: The base directory for the model outputs.
         mps: The names of the microphysics schemes to read in.
         domain: The name of the WRF domain to read and match with other data.
+        basic: include basic data?
+        conv: include convective data?
+        interp: include interpolated levels?
 
     Returns: A combined dataset of data.
 
     """
     if mps is None:
-        mps = ['NSSL', 'MY2', 'P3-3M']
+        mps = ['NSSL', 'MY2', 'P3-3M', 'Thompson']
 
     all_dat = []
 
     for i, row in hail_detections.iterrows():
         base_dr = sim_directory(
-            lat=row.latitude, lon=row.longitude, year=row.year, month=row.month,
-            day=row.day, hour=row.hour, minute=row.minute, sims_dir=sims_dir,
+            lat=row.latitude,
+            lon=row.longitude,
+            year=row.year,
+            month=row.month,
+            day=row.day,
+            hour=row.hour,
+            minute=row.minute,
+            sims_dir=sims_dir,
         )
 
         for mp in mps:
             dr = f'{base_dr}/WRF/{mp}/'
 
+            event_basic = xarray.Dataset()
+            event_conv = xarray.Dataset()
+            event_pressure_level = xarray.Dataset()
+
             # Open basic data.
-            event_basic = xarray.open_mfdataset(f'{dr}/basic*.nc', parallel=True)
-            event_basic = event_basic[['hailcast_diam_max', 'latitude', 'longitude']]
+            if basic:
+                event_basic = xarray.open_mfdataset(f'{dr}/basic*.nc', parallel=True, chunks={'time': 30})
+                event_basic = event_basic[['hailcast_diam_max', 'latitude', 'longitude']]
 
             # Open conv data.
-            event_conv = xarray.open_mfdataset(f'{dr}/conv*.nc', parallel=True)
+            if conv:
+                event_conv = xarray.open_mfdataset(f'{dr}/conv*.nc', parallel=True)
 
             # Open pressure-level interpolated fields.
-            event_pressure_level = xarray.open_mfdataset(f'{dr}/pressure_level*.nc', parallel=True)
-            event_pressure_level = event_pressure_level.rename({x: f'{x}_at_p' for x in event_pressure_level})
+            if interp:
+                event_pressure_level = xarray.open_mfdataset(f'{dr}/pressure_level*.nc', parallel=True)
+                event_pressure_level = event_pressure_level.rename({x: f'{x}_at_p' for x in event_pressure_level})
 
             event_dat = xarray.merge([event_conv, event_pressure_level, event_basic])
             del event_conv, event_pressure_level, event_basic
@@ -187,4 +209,220 @@ def plot_hail_simulations(dat, figsize=(9.6, 3)):
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, alpha=0.5)
     gl.top_labels = gl.right_labels = False
     sns.move_legend(ax, 'upper left', bbox_to_anchor=(1, 1.05))
+    plt.show()
+
+
+def comp_profiles(dat, variables, varnames, time_slice=slice(None, None), figsize=(12, 12), hail_colour='#EC18DE', nohail_colour='#05A703'):
+    """Compare vertical profiles of seleted variables by hail/no hail.
+
+    Args:
+        dat: The data to use to compare, often spatial means.
+        variables: Variables to include (as one per column).
+        varnames: Dictionary of variable: label.
+        time_slice: Slices of time (isel) to use; default to all.
+        figsize: Figure size.
+        hail_colour: Colour for hail profiles.
+        nohail_colour: Colour for no-hail profiles.
+
+    """
+    means = dat.isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', 'event_includes_hail']).mean()
+    sds = dat.isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', 'event_includes_hail']).std()
+
+    means = means.drop(columns=['timestep', 'event'])
+    sds = sds.drop(columns=['timestep', 'event'])
+
+    means = means.reset_index().melt(id_vars=['mp_scheme', 'pressure_level', 'event_includes_hail'], value_name='mean')
+    sds = sds.reset_index().melt(id_vars=['mp_scheme', 'pressure_level', 'event_includes_hail'], value_name='std')
+
+    means = means.set_index(['mp_scheme', 'pressure_level', 'event_includes_hail', 'variable'])
+    sds = sds.set_index(['mp_scheme', 'pressure_level', 'event_includes_hail', 'variable'])
+    stats = means.join(sds).reset_index()
+    stats = stats.sort_values(['mp_scheme', 'event_includes_hail', 'pressure_level'])
+
+    stats['min'] = stats['mean'] - stats['std']
+    stats['max'] = stats['mean'] + stats['std']
+
+    hail_cols = {False: nohail_colour, True: hail_colour}
+
+    mps = stats['mp_scheme'].unique()
+    _, axs = plt.subplots(ncols=len(variables), nrows=len(mps), figsize=figsize)
+
+    for m, mp in enumerate(mps):
+        for i, v in enumerate(variables):
+            s = stats[np.logical_and(stats['variable'] == v, stats['mp_scheme'] == mp)]
+
+            if np.all(np.isnan(s['mean'])):
+                axs[m, i].set_visible(False)
+                continue
+
+            sns.lineplot(
+                s,
+                x='mean',
+                y='pressure_level',
+                hue='event_includes_hail',
+                ax=axs[m, i],
+                sort=False,
+                estimator=None,
+                legend=False,
+                palette=hail_cols,
+            )
+
+            for ih in [False, True]:
+                rib = s[s.event_includes_hail == ih]
+                axs[m, i].fill_betweenx(rib['pressure_level'], rib['mean'] - rib['std'], rib['mean'] + rib['std'], color=hail_cols[ih], alpha=0.2)
+
+            axs[m, i].invert_yaxis()
+            axs[m, i].set_ylabel('Pressure [hPa]')
+            axs[m, i].set_xlabel(varnames[v])
+
+            if m < len(mps) - 1:
+                axs[m, i].set_xlabel('')
+
+            if i > 0:
+                axs[m, i].set_yticklabels([])
+                axs[m, i].set_ylabel('')
+
+            formatter = ScalarFormatter(useMathText=True)
+            formatter.set_scientific(True)
+            formatter.set_powerlimits((-3, 4))
+            axs[m, i].xaxis.set_major_formatter(formatter)
+
+            axs[m, i].set_title(mp)
+
+    legend_elements = [
+        Line2D([0], [0], color=hail_colour, label='Hail-event profile'),
+        Patch(facecolor=hail_colour, label='Hail-event std. dev. range', alpha=0.5),
+        Line2D([0], [0], color=nohail_colour, label='No-hail-event profile'),
+        Patch(facecolor=nohail_colour, label='No-hail-event std. dev. range', alpha=0.5),
+    ]
+
+    axs[0, len(variables)-1].legend(handles=legend_elements, loc='center', fontsize='small')
+    sns.move_legend(axs[0, len(variables)-1], 'upper left', bbox_to_anchor=(1, 1))
+
+    plt.tight_layout()
+    plt.show()
+
+
+def skew_T_comp(
+    dat,
+    time_slice=slice(None, None),
+    figsize=(12, 3),
+    yticks=None,
+    xticks=None,
+    hail_colour='#EC18DE',
+    nohail_colour='#05A703',
+    xlim=(-40, 38),
+    ylim=(1000, 150),
+    alpha=0.2,
+    wspace=0.1,
+    hspace=0.1,
+    file=None,
+):
+    """Compare Skew_Ts per mp scheme.
+
+    Args:
+        dat: Data to compare (spatial means).
+        time_slice: isel slice to use for timesteps (defaults to all).
+        figsize: Defaults to (12, 3).
+        yticks: Defaults to [1000, 700, 500, 300, 200].
+        xticks: Defaults to [-30, -15, 0, 15, 30].
+        hail_colour: Defaults to '#EC18DE'.
+        nohail_colour: Defaults to '#05A703'.
+        xlim: Defaults to (-40, 38).
+        ylim:Defaults to (1000, 150).
+        wspace: Width spacing for subplots.
+        hspace: Height spacing for subplots.
+        file: Output file to write.
+
+    """
+    if yticks is None:
+        yticks = [1000, 700, 500, 300, 200]
+    if xticks is None:
+        xticks = [-30, -15, 0, 15, 30]
+
+    mps = np.unique(dat.mp_scheme.values)
+    hail_profs = dat.isel(timestep=time_slice).where(dat.event_includes_hail == True)  # noqa: E712
+    nohail_profs = dat.isel(timestep=time_slice).where(dat.event_includes_hail == False)  # noqa: E712
+
+    fig = plt.figure(figsize=figsize)
+    gs = gridspec.GridSpec(1, len(mps) + 1, wspace=wspace, hspace=hspace)
+
+    for i, mp in enumerate(mps):
+        skew = SkewT(fig, subplot=gs[i])
+
+        p = hail_profs.pressure_level.values * units.hPa
+        T_hail_mean = hail_profs.sel(mp_scheme=mp).temperature_at_p.mean(['timestep', 'event']).values  # noqa: N806
+        T_hail_sd = hail_profs.sel(mp_scheme=mp).temperature_at_p.std(['timestep', 'event']).values  # noqa: N806
+
+        T_nohail_mean = nohail_profs.sel(mp_scheme=mp).temperature_at_p.mean(['timestep', 'event']).values  # noqa: N806
+        T_nohail_sd = nohail_profs.sel(mp_scheme=mp).temperature_at_p.std(['timestep', 'event']).values  # noqa: N806
+
+        dp_hail_mean = hail_profs.sel(mp_scheme=mp).td_at_p.mean(['timestep', 'event']).values
+        dp_nohail_mean = nohail_profs.sel(mp_scheme=mp).td_at_p.mean(['timestep', 'event']).values
+
+        dp_hail_sd = hail_profs.sel(mp_scheme=mp).td_at_p.std(['timestep', 'event']).values
+        dp_nohail_sd = nohail_profs.sel(mp_scheme=mp).td_at_p.std(['timestep', 'event']).values
+
+        skew.plot(p, T_hail_mean * units.K, hail_colour)
+        skew.plot(p, dp_hail_mean * units.degreeC, hail_colour, linestyle='--')
+        skew.ax.fill_betweenx(
+            p,
+            (dp_hail_mean - dp_hail_sd) * units.degreeC,
+            (dp_hail_mean + dp_hail_sd) * units.degreeC,
+            color=hail_colour,
+            alpha=alpha,
+        )
+        skew.ax.fill_betweenx(
+            p,
+            (T_hail_mean - T_hail_sd) * units.K,
+            (T_hail_mean + T_hail_sd) * units.K,
+            color=hail_colour,
+            alpha=alpha,
+        )
+
+        skew.plot(p, T_nohail_mean * units.K, nohail_colour)
+        skew.plot(p, dp_nohail_mean * units.degreeC, nohail_colour, linestyle='--')
+        skew.ax.fill_betweenx(
+            p,
+            (dp_nohail_mean - dp_nohail_sd) * units.degreeC,
+            (dp_nohail_mean + dp_nohail_sd) * units.degreeC,
+            color=nohail_colour,
+            alpha=alpha,
+        )
+        skew.ax.fill_betweenx(
+            p,
+            (T_nohail_mean - T_nohail_sd) * units.K,
+            (T_nohail_mean + T_nohail_sd) * units.K,
+            color=nohail_colour,
+            alpha=alpha,
+        )
+
+        skew.ax.set_title(mp)
+        skew.ax.set_yticks(yticks)
+        skew.ax.set_ylabel('Pressure [hPa]')
+        skew.ax.set_xticks(xticks)
+        skew.ax.set_xlabel('T [$^{\circ}$C]')
+        skew.ax.set_xlim(xlim)
+        skew.ax.set_ylim(ylim)
+
+        if i > 0:
+            skew.ax.set_yticklabels([])
+            skew.ax.set_ylabel('')
+
+    legend_elements = [
+        Line2D([0], [0], color=hail_colour, label='HE temperature'),
+        Line2D([0], [0], color=hail_colour, linestyle='--', label='HE dewpoint'),
+        Patch(facecolor=hail_colour, label='HE std. dev. range', alpha=alpha),
+        Line2D([0], [0], color=nohail_colour, label='NHE temperature'),
+        Line2D([0], [0], color=nohail_colour, linestyle='--', label='NHE dewpoint'),
+        Patch(facecolor=nohail_colour, label='NHE std. dev. range', alpha=alpha),
+    ]
+
+    legend_ax = fig.add_subplot(gs[len(mps) : len(mps) + 1])
+    legend_ax.axis('off')
+    legend_ax.legend(handles=legend_elements, loc='center', fontsize='small')
+
+    if file is not None:
+        plt.savefig(file, dpi=300, bbox_inches='tight')
+    
     plt.show()

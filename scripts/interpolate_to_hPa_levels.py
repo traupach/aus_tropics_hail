@@ -3,7 +3,7 @@
 import sys
 from pathlib import Path
 
-sys.path.append(Path('~/git/xarray_parcel/').expanduser())
+sys.path.append(str(Path('~/git/xarray_parcel/').expanduser()))
 
 from glob import glob
 
@@ -12,7 +12,9 @@ import numpy as np
 import xarray
 
 parcel.load_moist_adiabat_lookups(base_dir='~/')
-variables = ['pressure', 'temperature', 'rh', 'u', 'v', 'w', 'z', 'z_agl', 'mixing_ratio', 'dbz', 'td', 'specific_humidity']
+variables = ['pressure', 'temperature', 'rh', 'u', 'v', 'w', 'z', 'z_agl', 'dbz', 'td',
+             'specific_humidity', 'qvapor', 'qcloud', 'qrain', 'qice', 'qhail', 'qnhail', 
+             'qvhail', 'qgraupel', 'qngraupel', 'qvgraupel', 'qgraup']
 
 files = sorted(glob('basic_params*.nc'))
 for filename in files:
@@ -21,7 +23,8 @@ for filename in files:
     dat = dat.chunk({'time': 1, 'bottom_top': -1, 'west_east': -1, 'south_north': -1})
 
     # Select only variables with bottom_top coordinates.
-    dat = dat[variables]
+    vs = [x for x in variables if x in dat]
+    dat = dat[vs]
     levels = []
 
     # Loop through pressure levels and interpolate to each using log(pressure) as the vertical coordinate.
@@ -35,7 +38,7 @@ for filename in files:
     levels.pressure_level.attrs['units'] = 'hPa'
 
     # Copy attributes and add note.
-    for v in variables:
+    for v in vs:
         levels[v].attrs = dat[v].attrs
         levels[v].attrs['note'] = 'Interpolated using xarray_parcel log_interp to pressure levels'
 

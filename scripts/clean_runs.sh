@@ -2,6 +2,8 @@
 # Clean up run directories after running; remove symlinks to WRF executables etc. 
 # Run from the base output directory, ie /g/data/li18/tr2908/kimberley_hail/WRF_v4.6.0/simulations.
 
+find . -type l -name 'coeff*' -exec rm {} +
+find . -type l -name 'met_em*' -exec rm {} +
 find . -type l -name 'aerosol*' -exec rm {} +
 find . -type l -name 'BROADBAND*' -exec rm {} +
 find . -type l -name 'bulkdens*' -exec rm {} +
@@ -21,6 +23,7 @@ find . -type l -name 'ish*' -exec rm {} +
 find . -type l -name 'kern*' -exec rm {} +
 find . -type l -name 'LAND*' -exec rm {} +
 find . -type l -name 'mass*' -exec rm {} +
+find . -type l -name 'metgrid*' -exec rm {} +
 find . -type l -name '*.exe' -exec rm {} +
 find . -type l -name 'MP*' -exec rm {} +
 find . -type l -name 'p3*' -exec rm {} +
@@ -35,3 +38,7 @@ find . -type l -name 'tr*' -exec rm {} +
 find . -type l -name 'URB*' -exec rm {} +
 find . -type l -name 'VEG*' -exec rm {} +
 find . -type l -name 'wind*' -exec rm {} +
+find . -type l -name 'ungrib*' -exec rm {} +
+find . -type l -name 'geogrid*' -exec rm {} +
+find . -type l -name 'README*' -exec rm {} +
+find . -type l -name 'Vtable*' -exec rm {} +
