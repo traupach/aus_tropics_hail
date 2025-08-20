@@ -188,12 +188,13 @@ def circle_points(x, y, r, n, i):
     return px, py
 
 
-def plot_hail_simulations(dat, figsize=(9.6, 3), r=0.175, xlim=None, ylim=None, file=None):
+def plot_hail_simulations(dat, figsize=(9.6, 3), marker_size=80, r=0.2, xlim=None, ylim=None, file=None):
     """Plot where hail was and was not simulated, by MP scheme and event.
 
     Arguments:
         dat: Containing event_includes_hail, event_latitude, event_longitude, mp_scheme, and event.
         figsize: Figure width x height.
+        marker_size: Marker size for plot.
         r: Radius around the event location to spread the individual points in a circle.
         xlim: Limits for x axis.
         ylim: Limits for y axis.
@@ -214,7 +215,7 @@ def plot_hail_simulations(dat, figsize=(9.6, 3), r=0.175, xlim=None, ylim=None, 
         data=sims,
         x='event_longitude',
         y='event_latitude',
-        s=60,
+        s=marker_size,
         markers=['X', 'o'],
         hue='MP scheme',
         style='Hail',
