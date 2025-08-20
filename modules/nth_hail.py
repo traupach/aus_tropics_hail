@@ -5,9 +5,11 @@ import shutil
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
+import metpy.calc as mpcalc
 import numpy as np
 import seaborn as sns
 import xarray
+from cartopy.mpl.geoaxes import GeoAxes
 from matplotlib import gridspec
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch, Polygon
@@ -15,7 +17,6 @@ from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from metpy.plots import SkewT
 from metpy.units import units
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from cartopy.mpl.geoaxes import GeoAxes
 
 
 def sim_directory(lat, lon, year, month, day, hour, minute, sims_dir):  # noqa: D103
@@ -247,28 +248,20 @@ def plot_hail_simulations(dat, figsize=(9.6, 3), marker_size=80, r=0.2, xlim=Non
         bbox_transform=ax.transAxes,
         borderpad=2,
         axes_class=GeoAxes,
-        axes_kwargs={'projection': ccrs.NearsidePerspective(central_longitude=135, central_latitude=-25, satellite_height=35785831/5)},
+        axes_kwargs={'projection': ccrs.NearsidePerspective(central_longitude=135, central_latitude=-25, satellite_height=35785831 / 5)},
     )
     inset_ax.add_feature(cfeature.LAND, zorder=0)
     inset_ax.add_feature(cfeature.OCEAN, zorder=0)
     inset_ax.add_feature(cfeature.COASTLINE)
 
     # Define the extent box as a list of (lon, lat) tuples
-    extent_box = [
-        (xlim[0], ylim[0]),
-        (xlim[1], ylim[0]),
-        (xlim[1], ylim[1]),
-        (xlim[0], ylim[1]),
-        (xlim[0], ylim[0])
-    ]
+    extent_box = [(xlim[0], ylim[0]), (xlim[1], ylim[0]), (xlim[1], ylim[1]), (xlim[0], ylim[1]), (xlim[0], ylim[0])]
 
     # Patch to highlight plotted region.
-    patch = Polygon(extent_box, closed=True,
-                    transform=ccrs.PlateCarree(),
-                    facecolor='red', edgecolor='black', linewidth=0.2, alpha=0.7)
+    patch = Polygon(extent_box, closed=True, transform=ccrs.PlateCarree(), facecolor='red', edgecolor='black', linewidth=0.2, alpha=0.7)
     inset_ax.add_patch(patch)
 
-    inset_ax.set_global() 
+    inset_ax.set_global()
 
     if file is not None:
         plt.savefig(file, dpi=300, bbox_inches='tight')
@@ -481,6 +474,12 @@ def skew_T_comp(
             color=nohail_colour,
             alpha=alpha,
         )
+
+        # Calculate lifted parcel profile for surface parcel, based on mean temp/humidity at surface.
+        surf_T = ((T_hail_mean[-1] + T_nohail_mean[-1]) / 2) * units.K
+        surf_dp = ((dp_hail_mean[-1] + dp_nohail_mean[-1]) / 2) * units.degreeC
+        prof = mpcalc.parcel_profile(pressure=p[::-1], temperature=surf_T, dewpoint=surf_dp)[::-1]
+        skew.plot(p, prof, 'black', linewidth=1)
 
         skew.ax.set_title(mp)
         skew.ax.set_yticks(yticks)
