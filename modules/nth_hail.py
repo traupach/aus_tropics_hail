@@ -243,7 +243,7 @@ def plot_hail_simulations(dat, figsize=(9.6, 3), marker_size=80, r=0.2, xlim=Non
         width=1.5,
         height=1.5,
         loc='center left',
-        bbox_to_anchor=(0.975, 0.22),
+        bbox_to_anchor=(0.975, 0.2),
         bbox_transform=ax.transAxes,
         borderpad=2,
         axes_class=GeoAxes,
