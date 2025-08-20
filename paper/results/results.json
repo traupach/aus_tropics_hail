@@ -1,3 +1,6 @@
 {
-    "number_detections": 57
+    "number_detections": 57,
+    "number_mp_schemes": 4,
+    "hail_cases": 139,
+    "nohail_cases": 89
 }
