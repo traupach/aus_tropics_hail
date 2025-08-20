@@ -236,7 +236,7 @@ def plot_hail_simulations(dat, figsize=(9.6, 3), marker_size=80, r=0.2, xlim=Non
     ax.set_xlabel('Longitude [$^{\circ}$ E]')
     ax.set_ylabel('Latitude [$^{\circ}$ S]')
 
-    sns.move_legend(ax, 'upper left', bbox_to_anchor=(1, 1.02))
+    sns.move_legend(ax, 'upper left', bbox_to_anchor=(1, 1.02), fontsize='small')
 
     # Add inset globe to show map location.
     inset_ax = inset_axes(
