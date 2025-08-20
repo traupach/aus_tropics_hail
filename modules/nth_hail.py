@@ -231,15 +231,19 @@ def plot_hail_simulations(dat, figsize=(9.6, 3), marker_size=80, r=0.2, xlim=Non
 
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, alpha=0.5)
     gl.top_labels = gl.right_labels = False
-    sns.move_legend(ax, 'upper left', bbox_to_anchor=(1, 1.1))
+
+    ax.set_xlabel('Longitude [$^{\circ}$ E]')
+    ax.set_ylabel('Latitude [$^{\circ}$ S]')
+
+    sns.move_legend(ax, 'upper left', bbox_to_anchor=(1, 1))
 
     # Add inset globe to show map location.
     inset_ax = inset_axes(
         ax,
-        width=1.7,
-        height=1.7,
+        width=1.5,
+        height=1.5,
         loc='center left',
-        bbox_to_anchor=(0.975, 0.12),
+        bbox_to_anchor=(0.975, 0.22),
         bbox_transform=ax.transAxes,
         borderpad=2,
         axes_class=GeoAxes,
@@ -258,12 +262,10 @@ def plot_hail_simulations(dat, figsize=(9.6, 3), marker_size=80, r=0.2, xlim=Non
         (xlim[0], ylim[0])
     ]
 
-    # Create a Polygon patch
+    # Patch to highlight plotted region.
     patch = Polygon(extent_box, closed=True,
                     transform=ccrs.PlateCarree(),
                     facecolor='red', edgecolor='black', linewidth=0.2, alpha=0.7)
-
-    # Add the patch to the inset axes
     inset_ax.add_patch(patch)
 
     inset_ax.set_global() 
@@ -493,12 +495,12 @@ def skew_T_comp(
             skew.ax.set_ylabel('')
 
     legend_elements = [
-        Line2D([0], [0], color=hail_colour, label='HE temperature'),
-        Line2D([0], [0], color=hail_colour, linestyle='--', label='HE dewpoint'),
-        Patch(facecolor=hail_colour, label='HE std. dev. range', alpha=alpha),
-        Line2D([0], [0], color=nohail_colour, label='NHE temperature'),
-        Line2D([0], [0], color=nohail_colour, linestyle='--', label='NHE dewpoint'),
-        Patch(facecolor=nohail_colour, label='NHE std. dev. range', alpha=alpha),
+        Line2D([0], [0], color=hail_colour, label='H temperature'),
+        Line2D([0], [0], color=hail_colour, linestyle='--', label='H dewpoint'),
+        Patch(facecolor=hail_colour, label='H std. dev. range', alpha=alpha),
+        Line2D([0], [0], color=nohail_colour, label='NH temperature'),
+        Line2D([0], [0], color=nohail_colour, linestyle='--', label='NH dewpoint'),
+        Patch(facecolor=nohail_colour, label='NH std. dev. range', alpha=alpha),
     ]
 
     legend_ax = fig.add_subplot(gs[len(mps) : len(mps) + 1])
