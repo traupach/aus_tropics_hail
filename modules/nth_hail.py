@@ -1,17 +1,21 @@
+import math
 import os  # noqa: D100
 import shutil
 
 import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import xarray
 from matplotlib import gridspec
 from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
-from matplotlib.ticker import ScalarFormatter
+from matplotlib.patches import Patch, Polygon
+from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from metpy.plots import SkewT
 from metpy.units import units
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from cartopy.mpl.geoaxes import GeoAxes
 
 
 def sim_directory(lat, lon, year, month, day, hour, minute, sims_dir):  # noqa: D103
@@ -177,20 +181,32 @@ def open_kimberley_data(hail_detections, sims_dir, mps=None, basic=True, conv=Tr
     return xarray.combine_nested(all_dat, concat_dim='event_scheme', combine_attrs='drop_conflicts').unstack('event_scheme')
 
 
-def plot_hail_simulations(dat, figsize=(9.6, 3)):
+def circle_points(x, y, r, n, i):
+    angle = 2 * math.pi * i / n  # angle in radians
+    px = x + r * math.cos(angle)
+    py = y + r * math.sin(angle)
+    return px, py
+
+
+def plot_hail_simulations(dat, figsize=(9.6, 3), r=0.175, xlim=None, ylim=None, file=None):
     """Plot where hail was and was not simulated, by MP scheme and event.
 
     Arguments:
         dat: Containing event_includes_hail, event_latitude, event_longitude, mp_scheme, and event.
         figsize: Figure width x height.
+        r: Radius around the event location to spread the individual points in a circle.
+        xlim: Limits for x axis.
+        ylim: Limits for y axis.
+        file: Filename to write plot to.
 
     """
-    sims = dat[['event_includes_hail', 'event_latitude', 'event_longitude']].to_dataframe()
-    sims.loc[sims.mp_scheme == 'MY2', 'event_latitude'] += 0.2
-    sims.loc[sims.mp_scheme == 'MY2', 'event_longitude'] += 0.4
-    sims.loc[sims.mp_scheme == 'NSSL', 'event_latitude'] += 0.2
-    sims.loc[sims.mp_scheme == 'NSSL', 'event_longitude'] -= 0.4
-    sims = sims.drop(columns=['event', 'mp_scheme']).reset_index()
+    sims = dat[['event_includes_hail', 'event_latitude', 'event_longitude']].to_dataframe().reset_index()
+
+    for i, mp in enumerate(dat.mp_scheme.values):
+        angle = 2 * math.pi * i / len(dat.mp_scheme)  # angle in radians
+        sims.loc[sims.mp_scheme == mp, 'event_longitude'] += r * math.cos(angle)
+        sims.loc[sims.mp_scheme == mp, 'event_latitude'] += +r * math.sin(angle)
+
     sims = sims.rename(columns={'event_includes_hail': 'Hail', 'mp_scheme': 'MP scheme'})
 
     _, ax = plt.subplots(subplot_kw={'projection': ccrs.PlateCarree()}, figsize=figsize)
@@ -198,7 +214,7 @@ def plot_hail_simulations(dat, figsize=(9.6, 3)):
         data=sims,
         x='event_longitude',
         y='event_latitude',
-        s=50,
+        s=60,
         markers=['X', 'o'],
         hue='MP scheme',
         style='Hail',
@@ -206,9 +222,54 @@ def plot_hail_simulations(dat, figsize=(9.6, 3)):
         transform=ccrs.PlateCarree(),
     )
     ax.coastlines()
+
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+
     gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, alpha=0.5)
     gl.top_labels = gl.right_labels = False
-    sns.move_legend(ax, 'upper left', bbox_to_anchor=(1, 1.05))
+    sns.move_legend(ax, 'upper left', bbox_to_anchor=(1, 1.1))
+
+    # Add inset globe to show map location.
+    inset_ax = inset_axes(
+        ax,
+        width=1.7,
+        height=1.7,
+        loc='center left',
+        bbox_to_anchor=(0.975, 0.12),
+        bbox_transform=ax.transAxes,
+        borderpad=2,
+        axes_class=GeoAxes,
+        axes_kwargs={'projection': ccrs.NearsidePerspective(central_longitude=135, central_latitude=-25, satellite_height=35785831/5)},
+    )
+    inset_ax.add_feature(cfeature.LAND, zorder=0)
+    inset_ax.add_feature(cfeature.OCEAN, zorder=0)
+    inset_ax.add_feature(cfeature.COASTLINE)
+
+    # Define the extent box as a list of (lon, lat) tuples
+    extent_box = [
+        (xlim[0], ylim[0]),
+        (xlim[1], ylim[0]),
+        (xlim[1], ylim[1]),
+        (xlim[0], ylim[1]),
+        (xlim[0], ylim[0])
+    ]
+
+    # Create a Polygon patch
+    patch = Polygon(extent_box, closed=True,
+                    transform=ccrs.PlateCarree(),
+                    facecolor='red', edgecolor='black', linewidth=0.2, alpha=0.7)
+
+    # Add the patch to the inset axes
+    inset_ax.add_patch(patch)
+
+    inset_ax.set_global() 
+
+    if file is not None:
+        plt.savefig(file, dpi=300, bbox_inches='tight')
+
     plt.show()
 
 
@@ -305,6 +366,7 @@ def comp_profiles(
             formatter.set_scientific(True)
             formatter.set_powerlimits((-3, 4))
             axs[m, i].xaxis.set_major_formatter(formatter)
+            axs[m, i].xaxis.set_major_locator(MaxNLocator(nbins=3))
 
             axs[m, i].set_title(mp)
 
