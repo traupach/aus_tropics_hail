@@ -236,7 +236,7 @@ def plot_hail_simulations(dat, figsize=(9.6, 3), marker_size=80, r=0.2, xlim=Non
     ax.set_xlabel('Longitude [$^{\circ}$ E]')
     ax.set_ylabel('Latitude [$^{\circ}$ S]')
 
-    sns.move_legend(ax, 'upper left', bbox_to_anchor=(1, 1.02), fontsize='small')
+    sns.move_legend(ax, 'upper left', bbox_to_anchor=(1, 1.02))
 
     # Add inset globe to show map location.
     inset_ax = inset_axes(
@@ -373,7 +373,7 @@ def comp_profiles(
         Patch(facecolor=nohail_colour, label='No-hail-event std. dev. range', alpha=0.5),
     ]
 
-    fig.legend(handles=legend_elements, loc='lower center', fontsize='small', bbox_to_anchor=(0.5, -0.05))
+    fig.legend(handles=legend_elements, loc='lower center', bbox_to_anchor=(0.5, -0.05))
 
     if file is not None:
         plt.savefig(file, dpi=300, bbox_inches='tight')
@@ -476,7 +476,7 @@ def skew_T_comp(
         )
 
         # Calculate lifted parcel profile for surface parcel, based on mean temp/humidity at surface.
-        surf_T = ((T_hail_mean[-1] + T_nohail_mean[-1]) / 2) * units.K
+        surf_T = ((T_hail_mean[-1] + T_nohail_mean[-1]) / 2) * units.K  # noqa: N806
         surf_dp = ((dp_hail_mean[-1] + dp_nohail_mean[-1]) / 2) * units.degreeC
         prof = mpcalc.parcel_profile(pressure=p[::-1], temperature=surf_T, dewpoint=surf_dp)[::-1]
         skew.plot(p, prof, 'black', linewidth=1)
@@ -494,17 +494,17 @@ def skew_T_comp(
             skew.ax.set_ylabel('')
 
     legend_elements = [
-        Line2D([0], [0], color=hail_colour, label='H temperature'),
+        Line2D([0], [0], color=hail_colour, label='H temp.'),
         Line2D([0], [0], color=hail_colour, linestyle='--', label='H dewpoint'),
-        Patch(facecolor=hail_colour, label='H std. dev. range', alpha=alpha),
-        Line2D([0], [0], color=nohail_colour, label='NH temperature'),
+        Patch(facecolor=hail_colour, label='H std. dev.', alpha=alpha),
+        Line2D([0], [0], color=nohail_colour, label='NH temp.'),
         Line2D([0], [0], color=nohail_colour, linestyle='--', label='NH dewpoint'),
-        Patch(facecolor=nohail_colour, label='NH std. dev. range', alpha=alpha),
+        Patch(facecolor=nohail_colour, label='NH std. dev.', alpha=alpha),
     ]
 
     legend_ax = fig.add_subplot(gs[len(mps) : len(mps) + 1])
     legend_ax.axis('off')
-    legend_ax.legend(handles=legend_elements, loc='center', fontsize='small')
+    legend_ax.legend(handles=legend_elements, loc='center')
 
     if file is not None:
         plt.savefig(file, dpi=300, bbox_inches='tight')
