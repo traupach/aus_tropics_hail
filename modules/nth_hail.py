@@ -147,7 +147,8 @@ def open_kimberley_data(hail_detections, sims_dir, mps=None, basic=True, conv=Tr
             # Open basic data.
             if basic:
                 event_basic = xarray.open_mfdataset(f'{dr}/basic*.nc', parallel=True, chunks={'time': 30})
-                event_basic = event_basic[['hailcast_diam_max', 'latitude', 'longitude']]
+                event_basic = event_basic[['hailcast_diam_max', 'latitude', 'longitude', 'mdbz', 
+                                           'ctt', 'pw', 'graupel_max', 'updraft_helicity']]
 
             # Open conv data.
             if conv:
@@ -180,13 +181,6 @@ def open_kimberley_data(hail_detections, sims_dir, mps=None, basic=True, conv=Tr
 
     all_dat = [x.stack({'event_scheme': ['event', 'mp_scheme']}) for x in all_dat]
     return xarray.combine_nested(all_dat, concat_dim='event_scheme', combine_attrs='drop_conflicts').unstack('event_scheme')
-
-
-def circle_points(x, y, r, n, i):
-    angle = 2 * math.pi * i / n  # angle in radians
-    px = x + r * math.cos(angle)
-    py = y + r * math.sin(angle)
-    return px, py
 
 
 def plot_hail_simulations(dat, figsize=(9.6, 3), marker_size=80, r=0.2, xlim=None, ylim=None, file=None):
