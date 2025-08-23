@@ -3,5 +3,7 @@
     "hail_threshold": 20,
     "number_mp_schemes": 4,
     "hail_cases": 62,
-    "nohail_cases": 166
+    "nohail_cases": 166,
+    "hailcast_damaging_cases": 43,
+    "mp_damaging_cases": 70
 }

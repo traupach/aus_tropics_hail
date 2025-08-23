@@ -149,7 +149,8 @@ def open_kimberley_data(hail_detections, sims_dir, mps=None, basic=True, conv=Tr
             # Open basic data.
             if basic:
                 event_basic = xarray.open_mfdataset(f'{dr}/basic*.nc', parallel=True, chunks={'time': 30})
-                event_basic = event_basic[['hailcast_diam_max', 'latitude', 'longitude', 'mdbz', 'ctt', 'pw', 'graupel_max', 'updraft_helicity']]
+                event_basic = event_basic[['hailcast_diam_max', 'latitude', 'longitude', 'mdbz',
+                                           'ctt', 'pw', 'graupel_max', 'updraft_helicity', 'hail_maxk1']]
 
             # Open conv data.
             if conv:
@@ -291,8 +292,10 @@ def comp_profiles(
         hspace: Height spacing for subplots.
 
     """
-    means = dat.isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', 'event_includes_hail']).mean()
-    sds = dat.isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', 'event_includes_hail']).std()
+    v = variables + ['event_includes_hail']
+
+    means = dat[v].isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', 'event_includes_hail']).mean()
+    sds = dat[v].isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', 'event_includes_hail']).std()
 
     means = means.drop(columns=['timestep', 'event'])
     sds = sds.drop(columns=['timestep', 'event'])
@@ -307,7 +310,6 @@ def comp_profiles(
 
     stats['min'] = stats['mean'] - stats['std']
     stats['max'] = stats['mean'] + stats['std']
-
     stats['mean'] = stats['mean'] * factor
     stats['std'] = stats['std'] * factor
 
@@ -639,3 +641,37 @@ def plot_extrema(mins, maxes, file=None, figsize=(12,12), hail_colour='#EC18DE',
         plt.savefig(file, dpi=300, bbox_inches='tight')
 
     plt.show()
+
+def plot_surface_hailsizes(spatial_maxes, figsize=(6,4), file=None):
+    """Plot a comparison of surface hail sizes using HAILCAST vs microphysics schemes.
+
+    Args:
+        spatial_maxes: Spatial maxima including hail_maxk1 and hailcast_diam_max.
+        figsize: Figure size. Defaults to (6,4).
+        file: Plot to this (optional) file.
+
+    """
+    surface_hailsizes = spatial_maxes[['hail_maxk1', 'hailcast_diam_max']].to_dataframe().reset_index()
+    surface_hailsizes['hail_maxk1'] = surface_hailsizes['hail_maxk1'] * 1000 # Adjust from m to mm
+    surface_hailsizes['hail_maxk1'] = surface_hailsizes['hail_maxk1'].where(surface_hailsizes['hail_maxk1'] > 0)
+    surface_hailsizes['hailcast_diam_max'] = surface_hailsizes['hailcast_diam_max'].where(surface_hailsizes['hailcast_diam_max'] > 0)
+    surface_hailsizes = surface_hailsizes.dropna(how='all', subset=['hail_maxk1', 'hailcast_diam_max'])
+    surface_hailsizes = surface_hailsizes.rename(columns={'hail_maxk1': 'MP scheme', 'hailcast_diam_max': 'HAILCAST'})
+    surface_hailsizes = surface_hailsizes.melt(id_vars=['timestep', 'event', 'mp_scheme'])
+
+    _, ax = plt.subplots(figsize=figsize)
+    colors = ['#E69F00', '#56B4E9', '#009E73', '#F0E442']
+    sns.boxplot(surface_hailsizes, x='variable', y='value', hue='mp_scheme', ax=ax, palette=colors)
+    ax.set_ylabel('Hail diameter [mm]')
+    ax.set_xlabel('')
+    ax.legend(title='Microphysics scheme')
+
+    if file is not None:
+            plt.savefig(file, dpi=300, bbox_inches='tight')
+
+    plt.show()
+
+    hailcast_cases = int((spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hailcast_diam_max.max('timestep') > 20).sum().values)
+    mp_cases = int((spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hail_maxk1.max('timestep') * 1000 > 20).sum().values)
+
+    return hailcast_cases, mp_cases
