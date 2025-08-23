@@ -9,7 +9,7 @@ import wrf
 import xarray
 from netCDF4 import Dataset
 
-files = sorted(glob('wrfout_d03*'))[-3:]
+files = sorted(glob('wrfout_d03*'))[-2:]
 for filename in files:
     print(filename)
     nc = Dataset(filename)

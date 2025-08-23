@@ -1,5 +1,7 @@
+"""Functions to help with investigating simulations of hail in northern Australia."""
+
 import math
-import os  # noqa: D100
+import os
 import shutil
 
 import cartopy.crs as ccrs
@@ -147,8 +149,7 @@ def open_kimberley_data(hail_detections, sims_dir, mps=None, basic=True, conv=Tr
             # Open basic data.
             if basic:
                 event_basic = xarray.open_mfdataset(f'{dr}/basic*.nc', parallel=True, chunks={'time': 30})
-                event_basic = event_basic[['hailcast_diam_max', 'latitude', 'longitude', 'mdbz', 
-                                           'ctt', 'pw', 'graupel_max', 'updraft_helicity']]
+                event_basic = event_basic[['hailcast_diam_max', 'latitude', 'longitude', 'mdbz', 'ctt', 'pw', 'graupel_max', 'updraft_helicity']]
 
             # Open conv data.
             if conv:
@@ -248,10 +249,8 @@ def plot_hail_simulations(dat, figsize=(9.6, 3), marker_size=80, r=0.2, xlim=Non
     inset_ax.add_feature(cfeature.OCEAN, zorder=0)
     inset_ax.add_feature(cfeature.COASTLINE)
 
-    # Define the extent box as a list of (lon, lat) tuples
-    extent_box = [(xlim[0], ylim[0]), (xlim[1], ylim[0]), (xlim[1], ylim[1]), (xlim[0], ylim[1]), (xlim[0], ylim[0])]
-
     # Patch to highlight plotted region.
+    extent_box = [(xlim[0], ylim[0]), (xlim[1], ylim[0]), (xlim[1], ylim[1]), (xlim[0], ylim[1]), (xlim[0], ylim[0])]
     patch = Polygon(extent_box, closed=True, transform=ccrs.PlateCarree(), facecolor='red', edgecolor='black', linewidth=0.2, alpha=0.7)
     inset_ax.add_patch(patch)
 
@@ -402,6 +401,7 @@ def skew_T_comp(
         nohail_colour: Defaults to '#05A703'.
         xlim: Defaults to (-40, 38).
         ylim:Defaults to (1000, 150).
+        alpha: Line alpha value.
         wspace: Width spacing for subplots.
         hspace: Height spacing for subplots.
         file: Output file to write.
@@ -499,6 +499,141 @@ def skew_T_comp(
     legend_ax = fig.add_subplot(gs[len(mps) : len(mps) + 1])
     legend_ax.axis('off')
     legend_ax.legend(handles=legend_elements, loc='center')
+
+    if file is not None:
+        plt.savefig(file, dpi=300, bbox_inches='tight')
+
+    plt.show()
+
+def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=slice(-24, -12), hail_threshold=20):
+    """Read data from all simulations and make spatial stats. Cache as required.
+
+    Args:
+        hail_detections: Hail detections to read for.
+        sims_dir: Directory where simulations are stored.
+        results_files: Files to read for results.
+        analysis_timesteps: Timesteps to analyse (default: hour of the event).
+        hail_threshold: Require hail to be over this many mm to count as hail.
+
+    """
+    if results_files is None:
+        results_files = ['results/spatial_means.nc', 'results/spatial_maxes.nc', 'results/spatial_mins.nc']
+
+    if not np.all([os.path.exists(x) for x in results_files]):
+        dat = open_kimberley_data(hail_detections=hail_detections, sims_dir=sims_dir)
+        dat = dat.chunk({'event': 5, 'mp_scheme': 1, 'south_north': -1, 'west_east': -1, 'pressure_level': -1, 'timestep': 12})
+        dat = dat.isel(timestep=analysis_timesteps)
+
+        dat['event_includes_hail'] = (dat.hailcast_diam_max.max(['timestep', 'south_north', 'west_east']) >= hail_threshold).load()
+        dat['event_latitude'] = dat.latitude.mean(['timestep', 'south_north', 'west_east']).load()
+        dat['event_longitude'] = dat.longitude.mean(['timestep', 'south_north', 'west_east']).load()
+
+        files = {}
+        if not os.path.exists('results/spatial_means.nc'):
+            print('Spatial means...')
+            spatial_means = dat.mean(['south_north', 'west_east'], keep_attrs=True).load()
+            files['results/spatial_means.nc'] = spatial_means
+        if not os.path.exists('results/spatial_maxes.nc'):
+            print('Spatial maxes...')
+            spatial_maxes = dat.max(['south_north', 'west_east'], keep_attrs=True).load()
+            files['results/spatial_maxes.nc'] = spatial_maxes
+        if not os.path.exists('results/spatial_mins.nc'):
+            print('Spatial maxes...')
+            spatial_mins = dat.min(['south_north', 'west_east'], keep_attrs=True).load()
+            files['results/spatial_mins.nc'] = spatial_mins
+
+        comp = {'zlib': True, 'complevel': 5}
+        for file in files:
+            ds = files[file]
+            encoding = {var: comp for var in ds.data_vars}
+            ds.to_netcdf(file, encoding=encoding)
+
+    spatial_means = xarray.open_dataset('results/spatial_means.nc')
+    spatial_maxes = xarray.open_dataset('results/spatial_maxes.nc')
+    spatial_mins = xarray.open_dataset('results/spatial_mins.nc')
+
+    return spatial_means, spatial_maxes, spatial_mins
+
+def plot_extrema(mins, maxes, file=None, figsize=(12,12), hail_colour='#EC18DE', nohail_colour='#05A703'):
+    """Plot distributions of mins and maxes.
+
+    Args:
+        mins: Mins to plot.
+        maxes: Maxes to plot.
+        file: Output file for plot.
+        figsize: Figure size.
+        hail_colour: Colour for hail distributions.
+        nohail_colour: Colour for no-hail distributions.
+
+    """
+    mins_stacked = mins.stack({'sample': ['timestep', 'event']})
+    maxes_stacked = maxes.stack({'sample': ['timestep', 'event']})
+
+    assert mins_stacked.event_includes_hail.equals(maxes_stacked.event_includes_hail), 'Mismatch in hail flags'
+    plot_cols = {
+        'min_ctt': 'Minimum cloud top temperature',
+        'min_updraft_helicity': 'Minimum updraft helicity',
+        'max_mdbz': 'Maximum radar reflectivity',
+        'max_hailcast_diam': 'Maximum HAILCAST diameter',
+        'max_graupel_max': 'Maximum column-integrated graupel',
+        'max_shear_magnitude': 'Maximum 0-6 km bulk wind shear',
+        'min_freezing_level': 'Maximum freezing level height',
+        'min_temp_500': 'Minimum temperature at 500 hPa',
+        'max_cape': 'Maximum CAPE',
+        'min_cin': 'Minimum CIN',
+        'min_lapse_rate': 'Minimum 700 hPa to 500 hPa lapse rate',
+        'max_pw': 'Maximum precipitable water',
+    }
+
+    stats = (
+        xarray.Dataset(
+            {
+                'min_ctt': mins_stacked.ctt,
+                'min_updraft_helicity': mins_stacked.updraft_helicity,
+                'max_mdbz': maxes_stacked.mdbz,
+                'max_hailcast_diam': maxes_stacked.hailcast_diam_max,
+                'max_graupel_max': maxes_stacked.graupel_max,
+                'max_shear_magnitude': maxes_stacked.shear_magnitude,
+                'min_freezing_level': mins_stacked.freezing_level,
+                'min_temp_500': mins_stacked.temp_500,
+                'max_cape': maxes_stacked.mixed_100_cape,
+                'min_cin': mins_stacked.mixed_100_cin,
+                'min_lapse_rate': mins_stacked.lapse_rate_700_500,
+                'event_includes_hail': mins_stacked.event_includes_hail,
+                'max_pw': maxes_stacked.pw,
+            },
+        )
+    )
+
+    stats_table = stats.unstack().to_dataframe().reset_index()
+    unit_renamer = {'degC': '$^{\circ}$C',
+                    'kg m-2': 'km m$^{-2}$',
+                    'm2 s-2': 'm$^2$ s$^{-2}$'}
+
+
+    hail_cols = {False: nohail_colour, True: hail_colour}
+    _, axs = plt.subplots(ncols=2, nrows=6, figsize=figsize, gridspec_kw={'hspace': 0.3, 'wspace': 0.05})
+
+    for i, v in enumerate(plot_cols):
+        sns.boxplot(stats_table, y=v, x='mp_scheme', ax=axs.flat[i], hue='event_includes_hail',
+                    width=0.5, legend=i==len(plot_cols)-1, palette=hail_cols)
+        axs.flat[i].set_xlabel('')
+
+        col = (i % 2) + 1
+        row = (i // 2) + 1
+
+        if row != len(plot_cols)/2:
+            axs.flat[i].set_xticks([])
+        axs.flat[i].set_title(plot_cols[v])
+
+        u = stats[v].attrs['units']
+        axs.flat[i].set_ylabel(unit_renamer.get(u, u))
+
+        if col == 2:  # noqa: PLR2004
+            axs.flat[i].yaxis.tick_right()
+            axs.flat[i].yaxis.set_label_position("right")
+
+    sns.move_legend(axs.flat[i], 'center', bbox_to_anchor=(0, -0.75), title='Surface hail')
 
     if file is not None:
         plt.savefig(file, dpi=300, bbox_inches='tight')

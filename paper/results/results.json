@@ -1,9 +1,7 @@
 {
     "number_detections": 57,
-    "number_mp_schemes": 4,
-    "hail_cases": 79,
-    "nohail_cases": 149,
-    "removed_large_hailcast_perc": 0,
     "hail_threshold": 20,
-    "hail_diam_threshold": 200
+    "number_mp_schemes": 4,
+    "hail_cases": 62,
+    "nohail_cases": 166
 }
