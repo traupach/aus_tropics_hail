@@ -692,7 +692,7 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6,4), file=None, damaging_thr
             offset = i*width/numbars + (width/numbars/2)
             txt = damaging_events.loc[damaging_events['mp_scheme'] == mp, x].values[0]
             if txt != 0:
-                ax.text(x=from_x + offset, y=-10, ha='center', s=txt)
+                ax.text(x=from_x + offset, y=-15, ha='center', s=txt)
 
     ax.set_ylim(-20, np.max(surface_hailsizes['value']) * 1.1)
 
