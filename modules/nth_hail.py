@@ -9,6 +9,7 @@ import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
 import metpy.calc as mpcalc
 import numpy as np
+import pandas as pd
 import seaborn as sns
 import xarray
 from cartopy.mpl.geoaxes import GeoAxes
@@ -645,33 +646,60 @@ def plot_extrema(mins, maxes, file=None, figsize=(12,12), hail_colour='#EC18DE',
 
     plt.show()
 
-def plot_surface_hailsizes(spatial_maxes, figsize=(6,4), file=None):
+def plot_surface_hailsizes(spatial_maxes, figsize=(6,4), file=None, damaging_threshold=20, renamer=None, width=0.4):
     """Plot a comparison of surface hail sizes using HAILCAST vs microphysics schemes.
 
     Args:
         spatial_maxes: Spatial maxima including hail_maxk1 and hailcast_diam_max.
         figsize: Figure size. Defaults to (6,4).
         file: Plot to this (optional) file.
+        damaging_threshold: Damaging hail threshold in mm.
+        rename: Rename variables?
+        width: Width for bars.
 
     """
+    if renamer is None:
+        renamer = {'hail_maxk1': 'MP scheme', 'hailcast_diam_max': 'HAILCAST'}
+
     surface_hailsizes = spatial_maxes[['hail_maxk1', 'hailcast_diam_max']].to_dataframe().reset_index()
     surface_hailsizes['hail_maxk1'] = surface_hailsizes['hail_maxk1'] * 1000 # Adjust from m to mm
     surface_hailsizes['hail_maxk1'] = surface_hailsizes['hail_maxk1'].where(surface_hailsizes['hail_maxk1'] > 0)
     surface_hailsizes['hailcast_diam_max'] = surface_hailsizes['hailcast_diam_max'].where(surface_hailsizes['hailcast_diam_max'] > 0)
+
+    # True/False when hailcast or MP scheme shows damaging hail.
+    damaging_occurrences = surface_hailsizes[['mp_scheme', 'event', 'hailcast_diam_max', 'hail_maxk1']].copy()
+    damaging_occurrences['hailcast_diam_max'] = damaging_occurrences['hailcast_diam_max'] >= damaging_threshold
+    damaging_occurrences['hail_maxk1'] = damaging_occurrences['hail_maxk1'] >= damaging_threshold
+    damaging_events = (damaging_occurrences.groupby(['mp_scheme', 'event']).sum() > 0).groupby('mp_scheme').sum().reset_index()
+
     surface_hailsizes = surface_hailsizes.dropna(how='all', subset=['hail_maxk1', 'hailcast_diam_max'])
-    surface_hailsizes = surface_hailsizes.rename(columns={'hail_maxk1': 'MP scheme', 'hailcast_diam_max': 'HAILCAST'})
+    surface_hailsizes = surface_hailsizes.rename(columns=renamer)
     surface_hailsizes = surface_hailsizes.melt(id_vars=['timestep', 'event', 'mp_scheme'])
 
     _, ax = plt.subplots(figsize=figsize)
     colors = ['#E69F00', '#56B4E9', '#009E73', '#F0E442']
-    sns.boxplot(surface_hailsizes, x='variable', y='value', hue='mp_scheme', ax=ax, palette=colors, width=0.5)
+    sns.boxplot(surface_hailsizes, x='variable', y='value', hue='mp_scheme', ax=ax, palette=colors, width=width)
     ax.set_ylabel('Hail diameter [mm]')
     ax.set_xlabel('')
     ax.legend(title='Microphysics scheme')
 
+    numbars = len(spatial_maxes.mp_scheme.values)
+
+    for j, x in enumerate(renamer):
+        from_x = j - 0.5 * width
+
+        for i, mp in enumerate(spatial_maxes.mp_scheme.values):
+            offset = i*width/numbars + (width/numbars/2)
+            txt = damaging_events.loc[damaging_events['mp_scheme'] == mp, x].values[0]
+            if txt != 0:
+                ax.text(x=from_x + offset, y=-10, ha='center', s=txt)
+
+    ax.set_ylim(-20, np.max(surface_hailsizes['value']) * 1.1)
+
     if file is not None:
             plt.savefig(file, dpi=300, bbox_inches='tight')
 
+    plt.tight_layout()
     plt.show()
 
     hailcast_cases = int((spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hailcast_diam_max.max('timestep') > 20).sum().values)
