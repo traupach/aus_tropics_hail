@@ -28,7 +28,7 @@
 % Update article type if known
 \papertype{Original Article}
 
-\title{Simulations of satellite-detected hailstorms in Australia's tropics}
+\title{Damaging surface hail in simulations of satellite-detected hailstorms in Australia's tropics}
 
 % Include full author names and degrees, when required by the journal.
 \author[1,2,3]{Timothy H. Raupach}
@@ -53,7 +53,26 @@
 \maketitle
 
 \begin{abstract}
-    \todo{Abstract}
+    Satellite detections of hail signatures are uncertain in the tropics, where
+    the deep troposphere increases the chances that ice detected aloft will melt
+    before it reaches the surface. It is often assumed that satellite-based
+    detections of hail over the tropics are large over-estimations owing to this
+    effect. Here, we used numerical weather simulations to examine the
+    plausibility of damaging surface hail at times and locations when satellites
+    detected hail signatures over Australia's tropics. Four microphysics schemes
+    were used to simulate \Sexpr{results[['number_detections']]} hail signature
+    detections with surface hailstone sizes estimated using a column model for
+    hailstone growth and melting.
+    \Sexpr{round(results[['hail_cases']]/(results[['number_detections']]*4)*100,
+    0)}\% of the \Sexpr{results[['number_detections']]*4} simulations were
+    ``hail cases'' that produced surface hail over 20 mm in diameter. Moisture
+    profiles showed contrast between hail and other cases, with hail cases
+    exhibiting increased mid- to upper-level moisture and correspondingly higher
+    instability than no-hail cases. These hail cases therefore contained
+    stronger updrafts that could support the growth of large hailstones that
+    survived melting to reach the surface. The results show that satellite-based
+    hail detections in the tropics may plausibly contain a significant subset of
+    damaging surface-hail events.
 
 % Please include a maximum of seven keywords
 \keywords{hail, severe weather, hailstorms, tropical processes}
@@ -61,16 +80,19 @@
 
 \section{Introduction}
 
-Satellite detections of hail signatures are subject to uncertainty in the
-tropics, where there are marked differences in reported climatologies. The deep
-troposphere can allow for detection of ice aloft that may melt before reaching
-the surface. While it is often assumed that surface hail in the tropics is
-overestimated by satellite remote-sensing platforms, a lack of ground hail
-observations in many tropical regions means that the extent to which ice aloft
-melts before reaching the surface has not been investigated in detail. Here, we
-examine  numerical weather simulations of locations and times with satellite
-detections of hail over Australia's tropics, to determine the conditions under
-which surface hail occurrence is plausible.
+Hail in the tropics has long been known to be challenging to quantify owing to
+its rarity \citep{Frisby_JAM_2067}. Satellite detections of hail signatures are
+subject to uncertainty in the tropics, where there are marked differences in
+reported climatologies. The deep troposphere can allow for detection of ice
+aloft that may melt before reaching the surface.  While it is often assumed that
+surface hail in the tropics is overestimated by satellite remote-sensing
+platforms \cite[e.g.][]{Cecil_JC_2012}, a lack of detailed ground hail
+observations in many tropical regions \cite[e.g.][]{Raupach_NREE_2021} means
+large-hail occurrence in the tropics remains uncertain \citep{Prein_WCE_2018}
+and the extent to which ice aloft melts before reaching the surface has not been
+investigated in detail. Here, we examine  numerical weather simulations of
+locations and times with satellite detections of hail over Australia's tropics,
+to determine the conditions under which surface hail occurrence is plausible.
 
 Global hail climatologies based on satellite retrievals differ in their
 estimations of hail occurrence in the tropics, with some estimating that the
@@ -81,27 +103,37 @@ relatively high hail occurrence aloft, especially across Africa
 expected overestimation in the tropics. The climatology of \cite{Bang_JAMC_2019}
 used tropopause height to normalise brightness temperature depression to account
 for increased storm depth in tropical regions, which reduced hail probabilities
-in the tropics.
+in the tropics. Hail proxies, which statistically link large-scale atmospheric
+environments to hail occurrence, are also subject to high uncertainty in
+tropical regions \citep{Prein_WCE_2018}. For example, \cite{Raupach_MWR_2023}
+showed that common instability- and shear-based hail proxies overestimate hail
+probability in Australia's tropical regions, and proposed an improved proxy that
+exploits latitudinal variation in hail-prone conditions and additional
+threshold-based constraints that further reduced the false alarm rate compared
+to reports.
 
-Hail proxies, which statistically link large-scale atmospheric environments to
-hail occurrence, are also subject to high uncertainty in tropical regions. For
-example, \cite{Raupach_MWR_2023} showed that common instability- and shear-based
-hail proxies overestimate hail probability in Australia's tropical regions, and
-proposed an improved proxy that exploits latitudinal variation in hail-prone
-conditions and additional threshold-based constraints that further reduced the
-false alarm rate. \cite{Brook_MWR_2024}'s radar-based climatology for hail in
-Australia noted very little hail activity at two radar sites at $\sim$18
-S$^{\circ}$ and $\sim$17$^{\circ}$, lending weight to the theory that while deep
-convection based on high instability, often including overshooting tops
-\cite{Bedka_JAMC_2018},  occurs frequently in the tropics, satellite- and
-proxy-based hail climatologies that do not explicitly account for deeper storms
-and increased melting in the tropics may overestimate hail occurrences in these
-regions. 
+In Australia, hail occurs in the sub-tropics and southern tropics
+\citep{Allen_AMOJ_2011,Dowdy_JGRA_2020, Raupach_npjCAS_2023, Brook_MWR_2024}.
+Indeed, Australia's largest hailstone on record fell in October 2021 in the
+southern tropics at $\sim$20 S$^{\circ}$ \citep{ABC_2021}. However, radar
+coverage and hail observations in Australia's tropics are sparse
+\citep{Allen_AMOJ_2011, Brook_MWR_2024}, and uncertainty on large hail processes
+in Australia's deep tropics, like that globally, remains high.
+\cite{Brook_MWR_2024}'s radar-based climatology for hail in Australia showed
+probably hail occurrence extending into the tropics, but noted very little hail
+activity at two radar sites at $\sim$18 S$^{\circ}$ and $\sim$17$^{\circ}$. This
+lack of radar-derived hail observations lends weight to the theory that while
+deep convection and overshooting tops occur frequently in the tropics
+\citep{Bedka_JAMC_2018}, satellite- and proxy-based hail climatologies that do
+not explicitly account for deeper storms and increased melting in the tropics
+may overestimate hail occurrences in these regions. 
 
-
-
-\todo{Frisby and Sansom (1967) first reviewed hail occurrence in tropical
-regions.}
+Given the high damage potential of large hail \citep{Raupach_NREE_2021,
+Raupach_GRL_2025}, and the observed poleward expansion of the tropics
+\citep{Lucas_WIREs_2014}, there is importance in understanding hail processes in
+these regions. Here, we use a numerical weather model to simulate
+satellite-detected hailstorms and examine whether the simulations produce
+damaging surface hail.
 
 \section{Data and Methods}
 
@@ -129,20 +161,20 @@ European Centre for Medium-Range Weather Forecasts Reanalysis 5
 domains of 120 $\times$ 120 mass points each, centred on the satellite hail
 detection; with outer to inner domain grid spacings of 9 km, 3 km, and 1 km. 79
 vertical mass points were used with a model-top pressure of 50 hPa. The model
-timestep was 18 seconds and output was written at 5 minute intervals. The domain
-with 9 km grid spacing had the New Tiedtke \citep{Zhang_JC_2017} cumulus scheme
-enabled, while no cumulus parameterisation was used in the finer-resolution
-domains. Across all domains, we used the RRTMG radiation scheme
-\citep{Iacono_JGRA_2008}, the revised MM5 Monin-Obukhov surface layer scheme
-\citep{Jimenez_MWR_2012}, the YSU planetary boundary layer scheme
+time step was 18 seconds in the outer domain and output was written at 5 minute
+intervals. The domain with 9 km grid spacing had the New Tiedtke
+\citep{Zhang_JC_2017} cumulus scheme enabled, while no cumulus parameterisation
+was used in the finer-resolution domains. Across all domains, we used the RRTMG
+radiation scheme \citep{Iacono_JGRA_2008}, the revised MM5 Monin-Obukhov surface
+layer scheme \citep{Jimenez_MWR_2012}, the YSU planetary boundary layer scheme
 \citep{Hong_MWR_2006}, and the Noah-MP land-surface scheme
 \citep{Niu_JGRA_2011}. WRF-HAILCAST \citep{Adams-Selin_WF_2019} was enabled on
 the 3 km and 1 km domains to estimate surface hailstone sizes. For each
 hailstorm detection we ran four model instances only differing in the choice of
 microphysics scheme. The four parameterisations considered were the NSSL
-2-moment with cloud condensation nuclei prediction
-\citep[][]{Mansell_JAS_2010}, Thompson 2-moment \citep{Thompson_MWR_2008}, P3
-3-moment \citep[][]{Milbrandt_JAS_2021}, and MY2 \citep{Milbrandt_JAS_2005a,
+2-moment with cloud condensation nuclei prediction \citep[][]{Mansell_JAS_2010},
+Thompson 2-moment \citep{Thompson_MWR_2008}, P3 3-moment
+\citep[][]{Milbrandt_JAS_2021}, and MY2 \citep{Milbrandt_JAS_2005a,
 Milbrandt_JAS_2005b} schemes.
 
 \subsection{Data processing}
@@ -155,13 +187,41 @@ using WRF-Python version 1.3.4.1 \citep{wrf-python}, MetPy version 1.7.0
 Simulation results were subset to the 12 five-minute time steps covering the
 hour of the corresponding satellite detection. We considered a simulation to
 include hail if HAILCAST produced surface hail of at least
-\Sexpr{results['hail_threshold']} during the hour of detection -- this threshold
-was chosen to focus on damaging hail, which is normally considered to be 2 cm or
-larger, as well as to align with the data used to train the satellite-detection
-algorithm of \cite{Bang_JAMC_2019} which contained hail over 18 (before 2010) or
-over 25 mm (after 2010).
+\Sexpr{results['hail_threshold']} mm during the hour of satellite detection --
+this threshold was chosen to focus on severe or damaging hail, which is normally
+considered to be 20 mm or larger \citep{Allen_2018}, as well as to align with
+the data used to train the satellite-detection algorithm of
+\cite{Bang_JAMC_2019} which contained hail over 18 mm (before 2010) or over 25
+mm (after 2010).
 
 \section{Results}
+
+\subsection{Estimated hail diameters}
+\label{sec:hailsizes}
+
+Figure \ref{fig:hailsizes} shows distributions of (near-)surface hail sizes
+produced by HAILCAST and by each individual microphysics scheme. The
+distributions of hail diameters were similar between the microphysics scheme and
+HAILCAST for the MY2 schemes, but HAILCAST produced smaller hail sizes than the
+NSSL scheme and larger hail sizes than the Thompson microphysics scheme, and the
+HAILCAST estimates of hail diameter produced when the model used the P3-3M
+scheme were considerably larger than when other microphysics schemes were used.
+Across the MY2, NSSL and Thompson microphysics schemes, HAILCAST produced
+damaging hail in \Sexpr{results['hailcast_damaging_cases']} of the cases, while
+the microphysics scheme produced damaging hail in
+\Sexpr{results['mp_damaging_cases']} cases. To provide the most consistent
+treatment of hail growth and melting between simulations, in the rest of this
+article we define hail vs no-hail cases using HAILCAST estimates of surface hail
+diameters.
+
+\begin{figure}[bt]
+    \centering
+    \includegraphics[width=6cm]{figures/hailsizes}
+    \caption{Distributions of non-zero surface-hail diameters produced across all simulated time steps by microphysics scheme, comparing diameters produced by the microphysics scheme at the lowest model level (``MP scheme'') and those produced by HAILCAST. P3-3M does not calculate a near-surface hail diameter. \todo{Add number of cases with hail > 20 mm under each bar; swap MP and HAILCAST so HAILCAST is on left. Adjust font sizes.}}
+    \label{fig:hailsizes}
+\end{figure}
+
+\subsection{Production of surface hail}
 
 \begin{figure}[bt]
     \centering
@@ -172,15 +232,51 @@ over 25 mm (after 2010).
     surround each detection location. The x and y axes show longitude and
     latitude, respectively, and the globe shows the study location (shaded red)
     in context.}
+    \label{fig:hail_locations}
 \end{figure}
-
-\subsection{Production of surface hail}
 
 Of the \Sexpr{results[['number_detections']]*4} cases analysed,
 \Sexpr{results[['hail_cases']]}
 (\Sexpr{round(results[['hail_cases']]/(results[['number_detections']]*4)*100,
-0)}\%) produced surface hail, while the remaining
-\Sexpr{results[['nohail_cases']]} did not.
+0)}\%) produced surface hail over \Sexpr{results['hail_threshold']} mm, while
+the remaining \Sexpr{results[['nohail_cases']]} did not. Figure
+\ref{fig:hail_locations} shows the locations of the hail detections, and which
+simulations produced surface hail. There is no obvious spatial pattern to the
+simulations that produced surface hail. Figure \ref{fig:envs} shows
+distributions of per-time-step maxima and minima for various parameters. The
+relative differences between hail and no-hail cases were similar across all
+microphysics schemes. Distributions of precipitable water and convective
+available potential energy (CAPE) show that all cases produced storm-prone
+environments, while the distributions of radar reflectivities showed that most
+cases produced storm initiation. The hail cases, as expected, showed conditions
+favourable for more severe storms than the no-hail cases, with lower cloud-top
+temperatures, greater updraft helicity (rotation), higher radar reflectivity,
+more column-integrated graupel and higher precipitable water, greater bulk wind
+shear, increased convective available potential energy (CAPE) and more
+convective inhibition (CIN). The freezing level height and temperature at 500
+hPa both had a tendency to be lower in hail cases than no-hail cases for the MY2
+and NSSL microphysics schemes, but similar between hail and no-hail cases for
+the P3-3M and Thompson microphysics schemes. The P3-3M microphysics scheme
+produced notably larger surface hail than the other schemes, with 100 mm
+hailstones at the surface.
+
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=\textwidth]{figures/mins_maxes}
+    \caption{Distributions of minimum and maximum environmental parameters over
+    all simulated time steps, grouped by microphysics scheme and by whether the
+    simulated hail detection produced surface hail. Each detection is considered
+    as a whole, so ``surface hail'' here includes time steps for which there was
+    no surface hail if there was surface hail in the same event. Bars show
+    medians, boxes show interquartile ranges (IQRs), whiskers show range of
+    points within 1.5$\times$IQR, and points show points outside that range.
+    Radar reflectivity is simulated 10 cm reflectivity. Freezing level height is
+    the height of wet-bulb 0 $^{\circ}$C temperature. CAPE is convective
+    available potential energy and CIN is convective inhibition, both calculated
+    using a well-mixed parcel over the lowest 100 hPa. We note that P3-3M does
+    not have a graupel hydrometeor category.}
+    \label{fig:envs}
+\end{figure}
 
 \subsection{Skew-T analyses}
 
@@ -189,7 +285,7 @@ microphysics scheme and categorised by whether the simulation produced surface
 hail. The mean profiles all showed significant instability with deep regions of
 positive buoyancy for a parcel lifted from 1000 hPa, and thus high values of
 convective available potential energy. Convective inhibition was present below
-$\sim$750 hPa, with slightly more inhibition present in cases with surface hail
+$\sim$800 hPa, with slightly more inhibition present in cases with surface hail
 than those without for the MY2, NSSL, and Thompson microphysics schemes. The
 most notable difference between hail and no-hail cases was that the hail cases
 contained more moisture above $\sim$500 hPa, although we note there was overlap
@@ -198,37 +294,95 @@ in the dewpoint distributions.
 \begin{figure}[bt]
     \centering
     \includegraphics[width=\textwidth]{figures/skewT_comp}
-    \caption{Log p skew T plots showing mean profiles for all simulations that
+    \caption{Skew-T log-P plots showing mean profiles for all simulations that
     produced surface hail (H, pink) and those that did not produce surface hail
-    (NH, green). Black lines show the lifted temperature profiles for the mean
-    1000 hPa parcel across all simulations.}
+    (NH, green), by microphysics scheme. Black lines show the lifted temperature
+    profiles for the mean 1000 hPa parcel across all simulations for each
+    microphysics scheme.}
     \label{fig:skewTs}
 \end{figure}
 
-\todo{Need to show that the simulations reproduce the cloud-top conditions to trigger sat detection.}
+\subsection{Vertical profiles}
 
-\subsection{Hydrometeor profiles}
-
-Figure \ref{fig:hydrometeors}
+Figure \ref{fig:hydrometeors} shows profiles of hydrometeor mixing ratios by
+microphysics scheme and divided into hail and no-hail simulations. Sharp
+increases in mixing ratios at 1000 hPa likely relate to sampling effects,
+because not all events had surface pressure levels greater than 1000 hPa.
+Although hydrometeor concentration magnitudes differed greatly between
+microphysics schemes, the profile shapes were overall similar between the four
+schemes. The hail cases show larger hydrometeor loading in all categories, with
+notably more mid-level cloud, rain below the melting level and ice above. The
+no-hail cases showed ice above the melting level, indicating that these cases
+followed the hypothesis that ice detected by satellite melts before reaching the
+surface.
 
 \begin{figure}[bt]
     \centering
     \includegraphics[width=\textwidth]{figures/hydromets}
-    \caption{Mean profiles (solid lines) and the standard deviation across cases (shaded regions) for cloud, rain, ice and hail hydrometeor mixing ratios. P3-3M and Thompson microphysics schemes do not have a hail category.}
+    \caption{Mean vertical profiles (solid lines) and the standard deviation
+     (shaded regions) across all time steps, for cloud, rain, ice, graupel, and
+     hail hydrometeor mixing ratios. Each row shows a different microphysics
+     scheme and the profiles are coloured by whether the included time steps
+     were in a hail or no-hail event. The P3-3M microphysics scheme has no
+     graupel-only or hail-only ice category, while the Thompson microphysics
+     scheme does not have a hail category.}
     \label{fig:hydrometeors}
 \end{figure}
 
-\subsection{Profiles}
+Figure \ref{fig:profiles} shows profiles of relative humidity, winds, and radar
+reflectivity. In this case the magnitudes and shapes of the profiles were both
+similar between microphysics profiles, with the exception of radar reflectivity
+profiles produced by the NSSL scheme. As also shown by the Skew-T plots, the
+hail cases tended to have higher humidity in the low- and mid-troposphere than
+the no-hail cases. While horizontal (U and V) winds were similar between hail
+and no-hail cases, the hail cases showed notably stronger updrafts than the
+no-hail cases, especially in the mid to upper troposphere. This makes sense,
+since HAILCAST is only triggered to run when the updraft is stronger than 10 m
+s$^{-1}$, so events with no strong updrafts cannot produce hail in this
+simulation. These increased updrafts match the greater atmospheric instability
+in the hail cases. The radar reflectivity profiles show larger reflectivity
+values in hail than no-hail cases, corresponding to the hail cases' higher
+hydrometeor loadings. The NSSL microphysics scheme was an outlier in terms of
+reflectivity profile, with its relatively lower magnitudes of graupel and hail
+mixing ratios producing low reflectivities in the upper troposphere.
 
 \begin{figure}[bt]
     \centering
     \includegraphics[width=\textwidth]{figures/profiles}
-    \caption{\todo{Other profiles}}
+    \caption{As for Figure \ref{fig:hydrometeors}, but for relative humidity, U,
+    V, and W winds, and radar reflectivity (Z).}
+    \label{fig:profiles}
 \end{figure}
 
-\section{Discussion and Conclusion}
+\section{Discussion and Conclusions}
 
-\todo{Brook 2024 for tropical microphysics discussion}
+In this work we used a numerical weather model combined with a column model for
+hail growth and melting to examine the plausibility of satellite-detected
+hailstorms in Australia's tropics to produce damaging surface hail. We forced
+the model with boundary conditions from reanalyses to model hailstorms at
+convection-permitting resolution using four microphysics schemes. Of the
+\Sexpr{results[['number_detections']]*4} cases we examined,
+\Sexpr{round(results[['hail_cases']]/(results[['number_detections']]*4)*100,
+0)}\% produced damaging ($>$ 20 mm) surface hail, indicating that a substantial
+subset of satellite-detected storms using the \cite{Bang_JAMC_2019} algorithm
+could plausibly indicate the presence of damaging surface hail.
+
+The HAILCAST column model we used is subject to its own uncertainties
+\citep{Adams-Selin_WF_2019}. For example, results from Croatia showed HAILCAST
+producing false alarms for hail occurrence at 1 km grid spacing owing to
+HAILCAST triggering at updraft strengths trained for 3 km grid spacing
+\citep{Malecic_AR_2022}. In our study we did not have surface hail observations
+to compare to, but HAILCAST produced fewer damaging hail occurrences than the
+three microphysics schemes that estimate near-surface hail (Section
+\ref{sec:hailsizes}).
+
+\begin{itemize}
+    \item \todo{Brook 2024 for tropical microphysics discussion}
+    \item \todo{In Johnson et al (10.1175/MWR-D-18-0398.1), different
+    microphysics schemes are tested for idealised and real hail cases. The
+    original P3 scheme does not perform so well, which is why the P3-3M scheme
+    (used here) was developed.}
+\end{itemize}
 
 \section*{Acknowledgements}
 This research was undertaken with the assistance of resources and
