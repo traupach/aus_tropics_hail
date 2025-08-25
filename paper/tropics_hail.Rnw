@@ -216,7 +216,7 @@ diameters.
 
 \begin{figure}[bt]
     \centering
-    \includegraphics[width=6cm]{figures/hailsizes}
+    \includegraphics[width=\textwidth]{figures/hailsizes}
     \caption{Distributions of non-zero surface-hail diameters produced across all simulated time steps by microphysics scheme, comparing diameters produced by the microphysics scheme at the lowest model level (``MP scheme'') and those produced by HAILCAST. P3-3M does not calculate a near-surface hail diameter. \todo{Add number of cases with hail > 20 mm under each bar; swap MP and HAILCAST so HAILCAST is on left. Adjust font sizes.}}
     \label{fig:hailsizes}
 \end{figure}
