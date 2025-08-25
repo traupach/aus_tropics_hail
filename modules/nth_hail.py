@@ -661,7 +661,7 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6,4), file=None):
 
     _, ax = plt.subplots(figsize=figsize)
     colors = ['#E69F00', '#56B4E9', '#009E73', '#F0E442']
-    sns.boxplot(surface_hailsizes, x='variable', y='value', hue='mp_scheme', ax=ax, palette=colors)
+    sns.boxplot(surface_hailsizes, x='variable', y='value', hue='mp_scheme', ax=ax, palette=colors, width=0.5)
     ax.set_ylabel('Hail diameter [mm]')
     ax.set_xlabel('')
     ax.legend(title='Microphysics scheme')
