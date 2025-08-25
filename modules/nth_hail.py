@@ -107,8 +107,8 @@ def set_up_WRF(lat, lon, year, month, day, hour, minute, start_time, end_time, n
             print(f'Skipping existing WRF/{mp}...')
 
 
-def open_kimberley_data(hail_detections, sims_dir, mps=None, basic=True, conv=True, interp=True):
-    """Open the data for the Kimberley hail experiments.
+def open_data(hail_detections, sims_dir, mps=None, basic=True, conv=True, interp=True):
+    """Open the data for the tropical hail experiments.
 
     Arguments:
         hail_detections: Hail detection times to open for.
@@ -275,6 +275,7 @@ def comp_profiles(
     factor=1,
     wspace=0.1,
     hspace=0.32,
+    mps=['MY2', 'NSSL', 'Thompson', 'P3-3M']
 ):
     """Compare vertical profiles of seleted variables by hail/no hail.
 
@@ -290,9 +291,10 @@ def comp_profiles(
         factor: Multiply mean and std by this factor before plotting.
         wspace: Width spacing for subplots.
         hspace: Height spacing for subplots.
+        mps: MP schemes to plot, in row order.
 
     """
-    v = variables + ['event_includes_hail']
+    v = [*variables, 'event_includes_hail']
 
     means = dat[v].isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', 'event_includes_hail']).mean()
     sds = dat[v].isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', 'event_includes_hail']).std()
@@ -315,7 +317,6 @@ def comp_profiles(
 
     hail_cols = {False: nohail_colour, True: hail_colour}
 
-    mps = stats['mp_scheme'].unique()
     fig, axs = plt.subplots(ncols=len(variables), nrows=len(mps), figsize=figsize, gridspec_kw={'wspace': wspace, 'hspace': hspace})
 
     for m, mp in enumerate(mps):
@@ -324,6 +325,8 @@ def comp_profiles(
 
             if np.all(np.isnan(s['mean'])):
                 axs[m, i].set_visible(False)
+                if m > 0:
+                    axs[m-1, i].set_xlabel(varnames[v])
                 continue
 
             sns.lineplot(
@@ -357,7 +360,7 @@ def comp_profiles(
             formatter.set_scientific(True)
             formatter.set_powerlimits((-3, 4))
             axs[m, i].xaxis.set_major_formatter(formatter)
-            axs[m, i].xaxis.set_major_locator(MaxNLocator(nbins=3))
+            axs[m, i].xaxis.set_major_locator(MaxNLocator(nbins=2))
 
             axs[m, i].set_title(mp)
 
@@ -522,7 +525,7 @@ def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=
         results_files = ['results/spatial_means.nc', 'results/spatial_maxes.nc', 'results/spatial_mins.nc']
 
     if not np.all([os.path.exists(x) for x in results_files]):
-        dat = open_kimberley_data(hail_detections=hail_detections, sims_dir=sims_dir)
+        dat = open_data(hail_detections=hail_detections, sims_dir=sims_dir)
         dat = dat.chunk({'event': 5, 'mp_scheme': 1, 'south_north': -1, 'west_east': -1, 'pressure_level': -1, 'timestep': 12})
         dat = dat.isel(timestep=analysis_timesteps)
 
