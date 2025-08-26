@@ -35,15 +35,20 @@
 \author[4]{Sarah D. Bang}
 
 % Include full affiliation details for all authors
-\affil[1]{UNSW Sydney Institute for Climate Risk and Reponse, UNSW Sydney, Sydney, New South Wales, Australia}
-\affil[2]{UNSW Sydney Climate Change Research Centre, UNSW Sydney, Sydney, New South Wales, Australia}
-\affil[3]{ARC Centre of Excellence for 21st Century Weather, Sydney, New South Wales, Australia}
-\affil[4]{NASA Marshall Space Flight Center, Huntsville, Alabama, United States of America}
+\affil[1]{UNSW Sydney Institute for Climate Risk and Response, UNSW Sydney,
+Sydney, New South Wales, Australia} \affil[2]{UNSW Sydney Climate Change
+Research Centre, UNSW Sydney, Sydney, New South Wales, Australia} \affil[3]{ARC
+Centre of Excellence for 21st Century Weather, Sydney, New South Wales,
+Australia} \affil[4]{NASA Marshall Space Flight Center, Huntsville, Alabama,
+United States of America}
 
-\corraddress{T. H. Raupach, UNSW Institute for Climate Risk and Response, UNSW Sydney, Sydney, New South Wales, 2052, Australia}
+\corraddress{T. H. Raupach, UNSW Institute for Climate Risk and Response, UNSW
+ Sydney, Sydney, New South Wales, 2052, Australia}
 \corremail{t.raupach@unsw.edu.au}
 
-\fundinginfo{THR's position is supported by QBE Insurance. This work used compute time provided by the National Computational Infrastructure National Computational Merit Allocation Scheme 2025 (grant ID NCMAS-2025-10).}
+\fundinginfo{THR's position is supported by QBE Insurance. This work used
+compute time provided by the National Computational Infrastructure National
+Computational Merit Allocation Scheme 2025 (grant ID NCMAS-2025-10) and the UNSW high-performance computing resource allocation scheme.}
 
 % Include the name of the author that should appear in the running header
 \runningauthor{Raupach et al.}
@@ -55,8 +60,8 @@
 \begin{abstract}
     Satellite detections of hail signatures are uncertain in the tropics, where
     the deep troposphere increases the chances that ice detected aloft will melt
-    before it reaches the surface. It is often assumed that satellite-based
-    detections of hail over the tropics are large over-estimations owing to this
+    before it reaches the surface. It is often suspected that satellite-based
+    detections of hail over the tropics are over-estimations owing to this
     effect. Here, we used numerical weather simulations to examine the
     plausibility of damaging surface hail at times and locations when satellites
     detected hail signatures over Australia's tropics. Four microphysics schemes
@@ -92,7 +97,8 @@ large-hail occurrence in the tropics remains uncertain \citep{Prein_WCE_2018}
 and the extent to which ice aloft melts before reaching the surface has not been
 investigated in detail. Here, we examine  numerical weather simulations of
 locations and times with satellite detections of hail over Australia's tropics,
-to determine the conditions under which surface hail occurrence is plausible.
+to determine the conditions under which damaging hail occurrence at the surface
+is plausible.
 
 Global hail climatologies based on satellite retrievals differ in their
 estimations of hail occurrence in the tropics, with some estimating that the
@@ -100,17 +106,33 @@ tropical landmasses within about 15$^{\circ}$ of the equator experience
 relatively high hail occurrence aloft, especially across Africa
 \citep{Ferraro_AR_2015, Mroz_JAMC_2017, Ni_JAMC_2017}, while
 \cite{Cecil_JC_2012} explicitly artificially scaled their results to account for
-expected overestimation in the tropics. The climatology of \cite{Bang_JAMC_2019}
-used tropopause height to normalise brightness temperature depression to account
-for increased storm depth in tropical regions, which reduced hail probabilities
-in the tropics. Hail proxies, which statistically link large-scale atmospheric
-environments to hail occurrence, are also subject to high uncertainty in
-tropical regions \citep{Prein_WCE_2018}. For example, \cite{Raupach_MWR_2023}
-showed that common instability- and shear-based hail proxies overestimate hail
-probability in Australia's tropical regions, and proposed an improved proxy that
-exploits latitudinal variation in hail-prone conditions and additional
-threshold-based constraints that further reduced the false alarm rate compared
-to reports.
+expected overestimation in the tropics. \cite{Ni_JAMC_2017} showed that regional
+differences in storm heights lead to overestimation of large hail in the tropics
+by passive microwave methods. The climatology of \cite{Bang_JAMC_2019}, which we
+use here, used tropopause height to normalise passive microwave brightness
+temperature depression to account for increased storm depth in tropical regions,
+which reduced hail probabilities in the tropics. \cite{Bang_JAMC_2021} used
+radar data to examine regional biases in the passive microwave hail
+climatologies of \cite{Ni_JAMC_2017}, \cite{Mroz_JAMC_2017},
+\cite{Cecil_JC_2012}, and \cite{Bang_JAMC_2019}. They found overestimation of
+hail in the tropics by the \cite{Ni_JAMC_2017} algorithm owing to suspected deep
+columns of graupel that trigger the hail detection at the algorithm wavelength.
+There was reduced regional bias but the possibility of missed cases owing to
+non-uniform beam filling in the algorithm of \cite{Mroz_JAMC_2017}, which uses a
+longer wavelength but larger footprint. The regional scaling used by
+\cite{Cecil_JC_2012} was effective to reduce regional biases, and the
+best-performing algorithm was that of \cite{Bang_JAMC_2021} which showed little
+regional variability. Even without regional bias, satellite-based algorithms can
+not distinguish between hail aloft and hail near the surface. Hail proxies,
+which statistically link large-scale atmospheric environments to hail
+occurrence, also can not distinguish actual surface hail occurrence from
+hail-prone conditions \citep[e.g.][]{Tippett_CCCR_2015,Raupach_npjCAS_2023}, and
+are subject to high uncertainty in tropical regions \citep{Prein_WCE_2018}. For
+example, \cite{Raupach_MWR_2023} showed that common instability- and shear-based
+hail proxies overestimate hail probability in Australia's tropical regions, and
+proposed an improved proxy that exploits latitudinal variation in hail-prone
+conditions and additional threshold-based constraints that further reduced the
+false alarm rate compared to reports.
 
 In Australia, hail occurs in the sub-tropics and southern tropics
 \citep{Allen_AMOJ_2011,Dowdy_JGRA_2020, Raupach_npjCAS_2023, Brook_MWR_2024}.
@@ -120,7 +142,7 @@ coverage and hail observations in Australia's tropics are sparse
 \citep{Allen_AMOJ_2011, Brook_MWR_2024}, and uncertainty on large hail processes
 in Australia's deep tropics, like that globally, remains high.
 \cite{Brook_MWR_2024}'s radar-based climatology for hail in Australia showed
-probably hail occurrence extending into the tropics, but noted very little hail
+probable hail occurrence extending into the tropics, but noted very little hail
 activity at two radar sites at $\sim$18 S$^{\circ}$ and $\sim$17$^{\circ}$. This
 lack of radar-derived hail observations lends weight to the theory that while
 deep convection and overshooting tops occur frequently in the tropics
@@ -128,7 +150,7 @@ deep convection and overshooting tops occur frequently in the tropics
 not explicitly account for deeper storms and increased melting in the tropics
 may overestimate hail occurrences in these regions. 
 
-Given the high damage potential of large hail \citep{Raupach_NREE_2021,
+Given the high damage potential of large hail \citep[e.g.][]{Raupach_NREE_2021,
 Raupach_GRL_2025}, and the observed poleward expansion of the tropics
 \citep{Lucas_WIREs_2014}, there is importance in understanding hail processes in
 these regions. Here, we use a numerical weather model to simulate
@@ -141,12 +163,12 @@ damaging surface hail.
 
 Hail signatures were those detected using the algorithm of \cite{Bang_JAMC_2019}
 applied to passive microwave measurements of the Global Precipitation
-Measurement \citep[GPM,][]{Hou_BAMS_2014} Microwave Imager. The detections for
-this study we the detections to those with probability over 0.5, not flagged for
-snow or surface feature inclusion, between January 2014 and September 2023, in
-the region between 115 $^{\circ}$E to 146 $^{\circ}$E longitude and 10
-$^{\circ}$S to 20 $^{\circ}$S latitude. There were
-\Sexpr{results[['number_detections']]} such satellite-based hail detections.
+Measurement \citep[GPM,][]{Hou_BAMS_2014} Microwave Imager. In this study we
+subset the detections to those with probability over 0.5, not flagged for snow
+or surface feature inclusion, between January 2014 and September 2023, in the
+region between 115 $^{\circ}$E to 146 $^{\circ}$E longitude and 10 $^{\circ}$S
+to 20 $^{\circ}$S latitude. There were \Sexpr{results[['number_detections']]}
+such satellite-based hail detections.
 
 \subsection{Downscaled simulations}
 
@@ -217,7 +239,12 @@ diameters.
 \begin{figure}[bt]
     \centering
     \includegraphics[width=\textwidth]{figures/hailsizes}
-    \caption{Distributions of non-zero surface-hail diameters produced across all simulated time steps by microphysics scheme, comparing diameters produced by the microphysics scheme at the lowest model level (``MP scheme'') and those produced by HAILCAST. P3-3M does not calculate a near-surface hail diameter. \todo{Add number of cases with hail > 20 mm under each bar; swap MP and HAILCAST so HAILCAST is on left. Adjust font sizes.}}
+    \caption{Distributions of non-zero surface-hail diameters produced across
+    all simulated time steps by microphysics scheme, comparing diameters
+    produced by the microphysics scheme at the lowest model level (``MP
+    scheme'') and those produced by HAILCAST. P3-3M does not calculate a
+    near-surface hail diameter. Numbers under each bar show the number of
+    simulations that produced damaging ($>$ 20 mm) hail.}
     \label{fig:hailsizes}
 \end{figure}
 
@@ -356,41 +383,73 @@ mixing ratios producing low reflectivities in the upper troposphere.
 
 \section{Discussion and Conclusions}
 
-In this work we used a numerical weather model combined with a column model for
-hail growth and melting to examine the plausibility of satellite-detected
-hailstorms in Australia's tropics to produce damaging surface hail. We forced
-the model with boundary conditions from reanalyses to model hailstorms at
-convection-permitting resolution using four microphysics schemes. Of the
+The climatology of damaging hail in the tropics is subject to uncertainty
+because ground observations are sparse \citep{Frisby_JAM_2067} and
+remote-sensing techniques such as passive microwave retrievals
+\citep[e.g.][]{Cecil_JC_2012,Ni_JAMC_2017,Bang_JAMC_2019} and overshooting top
+detection \citep[e.g.][]{Bedka_JAMC_2018} from satellite, ground-based radar
+\citep{Brook_MWR_2024,Raupach_npjCAS_2023}, and hail proxies
+\citep[e.g.][]{Raupach_MWR_2023} do not necessarily detect the occurrence of
+surface hail. Satellite-based methods, radar, and overshooting tops can indicate
+ice aloft that melts before it reaches the ground. For example, passive
+microwave algorithms detect storms that have high radar reflectivity, indicating
+appreciable ice presence, at the -20 $^{\circ}$C level, but can not distinguish
+near-surface hail from ice aloft \citep{Bang_JAMC_2021}. Further, non-uniform
+beam filling means that satellite-based algorithms can not distinguish between
+areas containing widespread small hail or graupel and those with small regions
+of concentrated larger hail \citep[e.g.][]{Mroz_JAMC_2018, Bang_JAMC_2021}. Hail
+proxies suffer from the ``initiation problem'' in which hail-prone conditions
+only rarely result in surface hail
+\citep[e.g.][]{Tippett_CCCR_2015,Raupach_npjCAS_2023}. In this work we used a
+numerical weather model, combined with a column model for hail growth and
+melting, to examine the plausibility of satellite-detected hailstorms in
+Australia's tropics to produce damaging surface hail. We forced the model with
+boundary conditions from reanalyses to model hailstorms at convection-permitting
+resolution using four microphysics schemes. Of the
 \Sexpr{results[['number_detections']]*4} cases we examined,
 \Sexpr{round(results[['hail_cases']]/(results[['number_detections']]*4)*100,
 0)}\% produced damaging ($>$ 20 mm) surface hail, indicating that a substantial
 subset of satellite-detected storms using the \cite{Bang_JAMC_2019} algorithm
 could plausibly indicate the presence of damaging surface hail.
 
-The HAILCAST column model we used is subject to its own uncertainties
+In addition to increased melting of hail owing to higher freezing levels in the
+tropics, other features of the tropics could cause a reduction in damaging hail
+at the surface. Vertical wind shear is weaker in the tropics than further
+poleward \citep{Zhou_GRL_2021,Raupach_MWR_2023}, and storms that form in
+high-instability low-shear environments may ``self-extinguish'' as their cold
+pool production inhibits storm inflow \citep{May_MWR_2002}. Storms with more
+vigorous warm-rain processes below the freezing level may also starve the upper
+levels of supercooled liquid water required for large hail formation, and
+introduce more hail embryos to compete for the limited water resource, reducing
+large hail growth \citep{Cotton_2011_ch8}. Our study supports the wind shear
+hypothesis, with the storms that produced damaging surface hail exhibiting
+increased bulk wind shear for enhanced organisation. The hail-producing storms
+however produced more rain at the surface than those that did not, indicating
+that structural differences were more important than microphysical processes in
+the cases we examined.
+
+The HAILCAST column model we used is subject to uncertainties
 \citep{Adams-Selin_WF_2019}. For example, results from Croatia showed HAILCAST
 producing false alarms for hail occurrence at 1 km grid spacing owing to
 HAILCAST triggering at updraft strengths trained for 3 km grid spacing
 \citep{Malecic_AR_2022}. In our study we did not have surface hail observations
 to compare to, but HAILCAST produced fewer damaging hail occurrences than the
-three microphysics schemes that estimate near-surface hail (Section
-\ref{sec:hailsizes}).
-
-\begin{itemize}
-    \item \todo{Brook 2024 for tropical microphysics discussion}
-    \item \todo{In Johnson et al (10.1175/MWR-D-18-0398.1), different
-    microphysics schemes are tested for idealised and real hail cases. The
-    original P3 scheme does not perform so well, which is why the P3-3M scheme
-    (used here) was developed.}
-\end{itemize}
+three microphysics schemes that estimated near-surface hail sizes (Section
+\ref{sec:hailsizes}). In this work, just under one third of the satellite-based
+hailstorm detections we used were simulated to be plausible damaging hail cases
+at the surface. Our study is too limited geographically to determine whether
+this ratio of detections to damaging surface hail occurrences is generally
+applicable. Future work should examine this question, as well as further study
+the relative importance of structure versus microphysical processes in
+large-hail-producing storms in the tropics.
 
 \section*{Acknowledgements}
-This research was undertaken with the assistance of resources and
-services from the National Computational Infrastructure (NCI), which is
-supported by the Australian Government. Since March 2024, THR's position at UNSW
-has been financially supported by QBE Insurance.
+This research was undertaken with the assistance of resources and services from
+the National Computational Infrastructure (NCI), which is supported by the
+Australian Government. Since March 2024, THR's position at UNSW has been
+financially supported by QBE Insurance.
 
-%\section*{Conflict of interest} You may be asked to provide a conflict of
+% \section*{Conflict of interest} You may be asked to provide a conflict of
 % interest statement during the submission process. Please check the journal's
 % author guidelines for details on what to include in this section. Please
 % ensure you liaise with all co-authors to confirm agreement with the final
