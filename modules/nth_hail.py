@@ -9,7 +9,6 @@ import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
 import metpy.calc as mpcalc
 import numpy as np
-import pandas as pd
 import seaborn as sns
 import xarray
 from cartopy.mpl.geoaxes import GeoAxes
@@ -150,8 +149,9 @@ def open_data(hail_detections, sims_dir, mps=None, basic=True, conv=True, interp
             # Open basic data.
             if basic:
                 event_basic = xarray.open_mfdataset(f'{dr}/basic*.nc', parallel=True, chunks={'time': 30})
-                event_basic = event_basic[['hailcast_diam_max', 'latitude', 'longitude', 'mdbz',
-                                           'ctt', 'pw', 'graupel_max', 'updraft_helicity', 'hail_maxk1']]
+                event_basic = event_basic[
+                    ['hailcast_diam_max', 'latitude', 'longitude', 'mdbz', 'ctt', 'pw', 'graupel_max', 'updraft_helicity', 'hail_maxk1']
+                ]
 
             # Open conv data.
             if conv:
@@ -276,7 +276,7 @@ def comp_profiles(
     factor=1,
     wspace=0.1,
     hspace=0.32,
-    mps=['MY2', 'NSSL', 'Thompson', 'P3-3M']
+    mps=None,
 ):
     """Compare vertical profiles of seleted variables by hail/no hail.
 
@@ -295,6 +295,9 @@ def comp_profiles(
         mps: MP schemes to plot, in row order.
 
     """
+    if mps is None:
+        mps = ['MY2', 'NSSL', 'Thompson', 'P3-3M']
+
     v = [*variables, 'event_includes_hail']
 
     means = dat[v].isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', 'event_includes_hail']).mean()
@@ -327,7 +330,7 @@ def comp_profiles(
             if np.all(np.isnan(s['mean'])):
                 axs[m, i].set_visible(False)
                 if m > 0:
-                    axs[m-1, i].set_xlabel(varnames[v])
+                    axs[m - 1, i].set_xlabel(varnames[v])
                 continue
 
             sns.lineplot(
@@ -511,6 +514,7 @@ def skew_T_comp(
 
     plt.show()
 
+
 def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=slice(-24, -12), hail_threshold=20):
     """Read data from all simulations and make spatial stats. Cache as required.
 
@@ -560,7 +564,8 @@ def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=
 
     return spatial_means, spatial_maxes, spatial_mins
 
-def plot_extrema(mins, maxes, file=None, figsize=(12,12), hail_colour='#EC18DE', nohail_colour='#05A703'):
+
+def plot_extrema(mins, maxes, file=None, figsize=(12, 12), hail_colour='#EC18DE', nohail_colour='#05A703'):
     """Plot distributions of mins and maxes.
 
     Args:
@@ -591,44 +596,47 @@ def plot_extrema(mins, maxes, file=None, figsize=(12,12), hail_colour='#EC18DE',
         'max_pw': 'Maximum precipitable water',
     }
 
-    stats = (
-        xarray.Dataset(
-            {
-                'min_ctt': mins_stacked.ctt,
-                'min_updraft_helicity': mins_stacked.updraft_helicity,
-                'max_mdbz': maxes_stacked.mdbz,
-                'max_hailcast_diam': maxes_stacked.hailcast_diam_max,
-                'max_graupel_max': maxes_stacked.graupel_max,
-                'max_shear_magnitude': maxes_stacked.shear_magnitude,
-                'min_freezing_level': mins_stacked.freezing_level,
-                'min_temp_500': mins_stacked.temp_500,
-                'max_cape': maxes_stacked.mixed_100_cape,
-                'min_cin': mins_stacked.mixed_100_cin,
-                'min_lapse_rate': mins_stacked.lapse_rate_700_500,
-                'event_includes_hail': mins_stacked.event_includes_hail,
-                'max_pw': maxes_stacked.pw,
-            },
-        )
+    stats = xarray.Dataset(
+        {
+            'min_ctt': mins_stacked.ctt,
+            'min_updraft_helicity': mins_stacked.updraft_helicity,
+            'max_mdbz': maxes_stacked.mdbz,
+            'max_hailcast_diam': maxes_stacked.hailcast_diam_max,
+            'max_graupel_max': maxes_stacked.graupel_max,
+            'max_shear_magnitude': maxes_stacked.shear_magnitude,
+            'min_freezing_level': mins_stacked.freezing_level,
+            'min_temp_500': mins_stacked.temp_500,
+            'max_cape': maxes_stacked.mixed_100_cape,
+            'min_cin': mins_stacked.mixed_100_cin,
+            'min_lapse_rate': mins_stacked.lapse_rate_700_500,
+            'event_includes_hail': mins_stacked.event_includes_hail,
+            'max_pw': maxes_stacked.pw,
+        },
     )
 
     stats_table = stats.unstack().to_dataframe().reset_index()
-    unit_renamer = {'degC': '$^{\circ}$C',
-                    'kg m-2': 'km m$^{-2}$',
-                    'm2 s-2': 'm$^2$ s$^{-2}$'}
-
+    unit_renamer = {'degC': '$^{\circ}$C', 'kg m-2': 'km m$^{-2}$', 'm2 s-2': 'm$^2$ s$^{-2}$'}
 
     hail_cols = {False: nohail_colour, True: hail_colour}
     _, axs = plt.subplots(ncols=2, nrows=6, figsize=figsize, gridspec_kw={'hspace': 0.3, 'wspace': 0.05})
 
     for i, v in enumerate(plot_cols):
-        sns.boxplot(stats_table, y=v, x='mp_scheme', ax=axs.flat[i], hue='event_includes_hail',
-                    width=0.5, legend=i==len(plot_cols)-1, palette=hail_cols)
+        sns.boxplot(
+            stats_table,
+            y=v,
+            x='mp_scheme',
+            ax=axs.flat[i],
+            hue='event_includes_hail',
+            width=0.5,
+            legend=i == len(plot_cols) - 1,
+            palette=hail_cols,
+        )
         axs.flat[i].set_xlabel('')
 
         col = (i % 2) + 1
         row = (i // 2) + 1
 
-        if row != len(plot_cols)/2:
+        if row != len(plot_cols) / 2:
             axs.flat[i].set_xticks([])
         axs.flat[i].set_title(plot_cols[v])
 
@@ -637,7 +645,7 @@ def plot_extrema(mins, maxes, file=None, figsize=(12,12), hail_colour='#EC18DE',
 
         if col == 2:  # noqa: PLR2004
             axs.flat[i].yaxis.tick_right()
-            axs.flat[i].yaxis.set_label_position("right")
+            axs.flat[i].yaxis.set_label_position('right')
 
     sns.move_legend(axs.flat[i], 'center', bbox_to_anchor=(0, -0.75), title='Surface hail')
 
@@ -646,7 +654,8 @@ def plot_extrema(mins, maxes, file=None, figsize=(12,12), hail_colour='#EC18DE',
 
     plt.show()
 
-def plot_surface_hailsizes(spatial_maxes, figsize=(6,4), file=None, damaging_threshold=20, renamer=None, width=0.4):
+
+def plot_surface_hailsizes(spatial_maxes, figsize=(6, 4), file=None, damaging_threshold=20, renamer=None, width=0.4):
     """Plot a comparison of surface hail sizes using HAILCAST vs microphysics schemes.
 
     Args:
@@ -654,7 +663,7 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6,4), file=None, damaging_thr
         figsize: Figure size. Defaults to (6,4).
         file: Plot to this (optional) file.
         damaging_threshold: Damaging hail threshold in mm.
-        rename: Rename variables?
+        renamer: Rename variables?
         width: Width for bars.
 
     """
@@ -662,7 +671,7 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6,4), file=None, damaging_thr
         renamer = {'hail_maxk1': 'MP scheme', 'hailcast_diam_max': 'HAILCAST'}
 
     surface_hailsizes = spatial_maxes[['hail_maxk1', 'hailcast_diam_max']].to_dataframe().reset_index()
-    surface_hailsizes['hail_maxk1'] = surface_hailsizes['hail_maxk1'] * 1000 # Adjust from m to mm
+    surface_hailsizes['hail_maxk1'] = surface_hailsizes['hail_maxk1'] * 1000  # Adjust from m to mm
     surface_hailsizes['hail_maxk1'] = surface_hailsizes['hail_maxk1'].where(surface_hailsizes['hail_maxk1'] > 0)
     surface_hailsizes['hailcast_diam_max'] = surface_hailsizes['hailcast_diam_max'].where(surface_hailsizes['hailcast_diam_max'] > 0)
 
@@ -689,7 +698,7 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6,4), file=None, damaging_thr
         from_x = j - 0.5 * width
 
         for i, mp in enumerate(spatial_maxes.mp_scheme.values):
-            offset = i*width/numbars + (width/numbars/2)
+            offset = i * width / numbars + (width / numbars / 2)
             txt = damaging_events.loc[damaging_events['mp_scheme'] == mp, x].values[0]
             if txt != 0:
                 ax.text(x=from_x + offset, y=-15, ha='center', s=txt)
@@ -697,12 +706,14 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6,4), file=None, damaging_thr
     ax.set_ylim(-20, np.max(surface_hailsizes['value']) * 1.1)
 
     if file is not None:
-            plt.savefig(file, dpi=300, bbox_inches='tight')
+        plt.savefig(file, dpi=300, bbox_inches='tight')
 
     plt.tight_layout()
     plt.show()
 
-    hailcast_cases = int((spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hailcast_diam_max.max('timestep') > 20).sum().values)
-    mp_cases = int((spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hail_maxk1.max('timestep') * 1000 > 20).sum().values)
+    hailcast_cases = int(
+        (spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hailcast_diam_max.max('timestep') > damaging_threshold).sum().values,
+    )
+    mp_cases = int((spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hail_maxk1.max('timestep') * 1000 > damaging_threshold).sum().values)
 
     return hailcast_cases, mp_cases
