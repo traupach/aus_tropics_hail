@@ -1,7 +1,7 @@
 % The "blind" option will make anonymous all author, affiliation, correspondence and funding information.
 % Use "num-refs" option for numerical citation and references style.
 % Use "alpha-refs" option for author-year citation and references style.
-\documentclass[alpha-refs]{wiley-article}
+\documentclass[blind, alpha-refs]{wiley-article}
 
 \usepackage{color}
 \usepackage{ulem}
@@ -453,11 +453,11 @@ financially supported by QBE Insurance.
 \section*{Code and data availability}
 
 Code, scripts, WRF configuration files, and satellite-detection data used in
-this project are available on GitHub \citep{Raupach_software_2025} and archived
-on Zenodo \citep{Raupach_zenodo_2025} (the version used for this manuscript was
-v1.0.0). \texttt{xarray\_parcel}, used to calculate convective parameters, is
-available at \cite{Raupach_xarray_parcel_github_2025} and archived on Zenodo
-\citep{Raupach_xarray_zenodo}.
+this project are available on GitHub %\citep{Raupach_software_2025} 
+and archived on Zenodo [ANONYMISED]
+%\citep{Raupach_zenodo_2025} 
+(the version used for this manuscript was
+v1.0.0).
 
 % \section*{Conflict of interest} You may be asked to provide a conflict of
 % interest statement during the submission process. Please check the journal's
