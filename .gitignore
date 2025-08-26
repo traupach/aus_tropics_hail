@@ -137,6 +137,6 @@ tropics_hail.pdf
 *synctex.gz
 *.tex
 
-rss.bst
-vancouver-authoryear.bst
-wiley-article.cls
+paper/rss.bst
+paper/vancouver-authoryear.bst
+paper/wiley-article.cls
