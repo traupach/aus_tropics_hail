@@ -447,23 +447,29 @@ large-hail-producing storms in the tropics.
 
 This research was undertaken with the assistance of resources and services from
 the National Computational Infrastructure (NCI), which is supported by the
-Australian Government. Since March 2024, THR's position at UNSW has been
-financially supported by QBE Insurance.
+Australian Government. [ANONYMISED POSITION SUPPORT].
+
+%Since March 2024, THR's position at UNSW has been
+%financially supported by QBE Insurance.
 
 \section*{Code and data availability}
 
-Code, scripts, WRF configuration files, and satellite-detection data used in
-this project are available on GitHub %\citep{Raupach_software_2025} 
-and archived on Zenodo [ANONYMISED]
-%\citep{Raupach_zenodo_2025} 
-(the version used for this manuscript was
-v1.0.0).
+% Code, scripts, WRF configuration files, and satellite-detection data used in
+% this project are available on GitHub \citep{Raupach_software_2025} and archived
+% on Zenodo \citep{Raupach_zenodo_2025} (the version used for this manuscript was
+% v1.0.0).
 
-% \section*{Conflict of interest} You may be asked to provide a conflict of
-% interest statement during the submission process. Please check the journal's
-% author guidelines for details on what to include in this section. Please
-% ensure you liaise with all co-authors to confirm agreement with the final
-% statement.
+Code, scripts, WRF configuration files, and satellite-detection data used in
+this project are available on GitHub and archived on Zenodo [ANONYMISED] (the
+version used for this manuscript was v1.0.0).
+
+\section*{Conflict of interest} 
+
+%THR's position is supported by QBE Insurance. SDB declares no conflict of
+%interest.
+
+[ANONYMISED] position is supported by [ANONYMISED]. [ANONYMISED] declares no
+conflict of interest. 
 
 % \begin{table}[bt]
 % \caption{}
