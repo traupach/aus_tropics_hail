@@ -4,7 +4,7 @@ This repository contains code used for the research study "Damaging surface hail
 
 ## Required python packages:
 
-* xarray_parcel by T. H. Raupach (https://doi.org/10.5281/zenodo.15081094) version >= v1.0.7.
+* xarray_parcel by T. H. Raupach (https://doi.org/10.5281/zenodo.15081094) version >= v1.0.8.
 
 ## License
 
