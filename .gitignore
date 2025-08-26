@@ -140,3 +140,4 @@ tropics_hail.pdf
 paper/rss.bst
 paper/vancouver-authoryear.bst
 paper/wiley-article.cls
+*.DS_Store*
