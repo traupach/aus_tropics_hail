@@ -12,7 +12,7 @@
 \newcommand{\edit}[2]{\textcolor{red}{\sout{#1}} \textcolor{blue}{#2}}
 \newcommand{\mnote}[1]{\marginpar{\textcolor{green}{\textbf{#1}}}}
 
- % Uncomment to display without annotation; comment out otherwise
+% Uncomment to display without annotation; comment out otherwise
 %\newcommand{\add}[1]{#1}
 %\newcommand{\delete}[1]{}
 %\newcommand{\edit}[2]{#2}
@@ -444,10 +444,20 @@ the relative importance of structure versus microphysical processes in
 large-hail-producing storms in the tropics.
 
 \section*{Acknowledgements}
+
 This research was undertaken with the assistance of resources and services from
 the National Computational Infrastructure (NCI), which is supported by the
 Australian Government. Since March 2024, THR's position at UNSW has been
 financially supported by QBE Insurance.
+
+\section*{Code and data availability}
+
+Code, scripts, WRF configuration files, and satellite-detection data used in
+this project are available on GitHub \citep{Raupach_software_2025} and archived
+on Zenodo \citep{Raupach_zenodo_2025} (the version used for this manuscript was
+v1.0.0). \texttt{xarray\_parcel}, used to calculate convective parameters, is
+available at \cite{Raupach_xarray_parcel_github_2025} and archived on Zenodo
+\citep{Raupach_xarray_zenodo}.
 
 % \section*{Conflict of interest} You may be asked to provide a conflict of
 % interest statement during the submission process. Please check the journal's
