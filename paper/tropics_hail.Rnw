@@ -182,7 +182,8 @@ satellite hailstorm detection. For each simulation, we ran WRF for a period of
 considered in the analyses, the hour before the hail detection, the hour of the
 detection, and the hour afterwards. Boundary conditions were provided by
 European Centre for Medium-Range Weather Forecasts Reanalysis 5
-\citep[ERA5,][]{Hersbach_QJRMS_2020} data. The models were run with three nested
+\citep[ERA5,][]{Hersbach_QJRMS_2020} and ERA5-Land
+\citep{Munoz-Sabater_ESSD_2021} data. The models were run with three nested
 domains of 120 $\times$ 120 mass points each, centred on the satellite hail
 detection; with outer to inner domain grid spacings of 9 km, 3 km, and 1 km. 79
 vertical mass points were used with a model-top pressure of 50 hPa. The model
@@ -464,7 +465,7 @@ Australian Government. [ANONYMISED POSITION SUPPORT].
 
 Code, scripts, WRF configuration files, and satellite-detection data used in
 this project are available on GitHub and archived on Zenodo [ANONYMISED] (the
-version used for this manuscript was v1.0.0).
+version used for this manuscript was v1.0.0). ERA5 forcing data are openly available \citep{ERA5_data, ERA5-Land_data}.
 
 \section*{Conflict of interest} 
 
