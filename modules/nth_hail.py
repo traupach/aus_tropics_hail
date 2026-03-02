@@ -9,6 +9,7 @@ import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
 import metpy.calc as mpcalc
 import numpy as np
+import pandas as pd
 import seaborn as sns
 import xarray
 from cartopy.mpl.geoaxes import GeoAxes
@@ -148,7 +149,7 @@ def open_data(hail_detections, sims_dir, mps=None, basic=True, conv=True, interp
 
             # Open basic data.
             if basic:
-                event_basic = xarray.open_mfdataset(f'{dr}/basic*.nc', parallel=True, chunks={'time': 30})
+                event_basic = xarray.open_mfdataset(f'{dr}/basic*.nc', parallel=True, chunks={'time': 30}, data_vars='all')
                 event_basic = event_basic[
                     ['hailcast_diam_max', 'latitude', 'longitude', 'mdbz', 'ctt', 'pw', 'graupel_max', 'updraft_helicity', 'hail_maxk1']
                 ]
@@ -183,7 +184,7 @@ def open_data(hail_detections, sims_dir, mps=None, basic=True, conv=True, interp
             del event_dat
 
     all_dat = [x.stack({'event_scheme': ['event', 'mp_scheme']}) for x in all_dat]
-    return xarray.combine_nested(all_dat, concat_dim='event_scheme', combine_attrs='drop_conflicts').unstack('event_scheme')
+    return xarray.combine_nested(all_dat, concat_dim='event_scheme', combine_attrs='drop_conflicts', data_vars='all').unstack('event_scheme')
 
 
 def plot_hail_simulations(dat, figsize=(9.6, 3), marker_size=80, r=0.2, xlim=None, ylim=None, file=None):
@@ -534,7 +535,33 @@ def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=
         dat = dat.chunk({'event': 5, 'mp_scheme': 1, 'south_north': -1, 'west_east': -1, 'pressure_level': -1, 'timestep': 12})
         dat = dat.isel(timestep=analysis_timesteps)
 
-        dat['event_includes_hail'] = (dat.hailcast_diam_max.max(['timestep', 'south_north', 'west_east']) >= hail_threshold).load()
+        # Convert hail_maxk1 from m to mm.
+        dat['hail_maxk1'] = dat.hail_maxk1 * 1000
+        dat.hail_maxk1.attrs['units'] = 'mm'
+
+        # Assign each event as one of "no hail", "hailcast only", "mp only", or "hailcast + mp".
+        hailcast = dat.hailcast_diam_max.max(['timestep', 'south_north', 'west_east']) >= hail_threshold
+        micro = dat.hail_maxk1.max(['timestep', 'south_north', 'west_east']) >= hail_threshold
+
+        no_hail = np.logical_not(np.logical_or(hailcast, micro))        # No hail
+        hailcast_and_mp = np.logical_and(hailcast, micro)               # HAILCAST + MP
+        hailcast_only = np.logical_and(hailcast, np.logical_not(micro)) # HAILCAST only
+        mp_only = np.logical_and(np.logical_not(hailcast), micro)       # MP only
+
+        hail_flag = xarray.full_like(hailcast, fill_value = np.nan)
+        hail_flag = hail_flag.where(~no_hail, other='No hail')
+        hail_flag = hail_flag.where(~hailcast_and_mp, other='HAILCAST + MP')
+        hail_flag = hail_flag.where(~hailcast_only, other='HAILCAST only')
+        hail_flag = hail_flag.where(~mp_only, other='MP only')
+
+        hail_flag = hail_flag.load()
+        assert np.all(hail_flag.notnull()).values, 'Unassigned event type'
+
+        # Convert to Categorical because NetCDF doesn't compress string arrays very well.
+        cat = pd.Categorical(hail_flag.values.ravel())
+        codes = cat.codes.reshape(hail_flag.shape)
+        dat = dat.assign(event_hail_flag=(hail_flag.dims, codes))
+        dat['event_hail_flag'].attrs['categories'] = list(map(str, cat.categories))
         dat['event_latitude'] = dat.latitude.mean(['timestep', 'south_north', 'west_east']).load()
         dat['event_longitude'] = dat.longitude.mean(['timestep', 'south_north', 'west_east']).load()
 
@@ -548,7 +575,7 @@ def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=
             spatial_maxes = dat.max(['south_north', 'west_east'], keep_attrs=True).load()
             files['results/spatial_maxes.nc'] = spatial_maxes
         if not os.path.exists('results/spatial_mins.nc'):
-            print('Spatial maxes...')
+            print('Spatial mins...')
             spatial_mins = dat.min(['south_north', 'west_east'], keep_attrs=True).load()
             files['results/spatial_mins.nc'] = spatial_mins
 
@@ -562,10 +589,14 @@ def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=
     spatial_maxes = xarray.open_dataset('results/spatial_maxes.nc')
     spatial_mins = xarray.open_dataset('results/spatial_mins.nc')
 
+    for x in [spatial_means, spatial_maxes, spatial_mins]:
+        x.event_hail_flag.attrs['categories']
+
     return spatial_means, spatial_maxes, spatial_mins
 
 
-def plot_extrema(mins, maxes, file=None, figsize=(12, 12), hail_colour='#EC18DE', nohail_colour='#05A703'):
+def plot_extrema(mins, maxes, file=None, figsize=(12, 12),
+                 colours=['#EC18DE', '#05A703','#1F77B4', '#FF7F0E']):
     """Plot distributions of mins and maxes.
 
     Args:
@@ -573,14 +604,13 @@ def plot_extrema(mins, maxes, file=None, figsize=(12, 12), hail_colour='#EC18DE'
         maxes: Maxes to plot.
         file: Output file for plot.
         figsize: Figure size.
-        hail_colour: Colour for hail distributions.
-        nohail_colour: Colour for no-hail distributions.
+        colour: Colours for event hail flags.
 
     """
     mins_stacked = mins.stack({'sample': ['timestep', 'event']})
     maxes_stacked = maxes.stack({'sample': ['timestep', 'event']})
 
-    assert mins_stacked.event_includes_hail.equals(maxes_stacked.event_includes_hail), 'Mismatch in hail flags'
+    assert mins_stacked.event_hail_flag.equals(maxes_stacked.event_hail_flag), 'Mismatch in hail flags'
     plot_cols = {
         'min_ctt': 'Minimum cloud top temperature',
         'min_updraft_helicity': 'Minimum updraft helicity',
@@ -609,7 +639,7 @@ def plot_extrema(mins, maxes, file=None, figsize=(12, 12), hail_colour='#EC18DE'
             'max_cape': maxes_stacked.mixed_100_cape,
             'min_cin': mins_stacked.mixed_100_cin,
             'min_lapse_rate': mins_stacked.lapse_rate_700_500,
-            'event_includes_hail': mins_stacked.event_includes_hail,
+            'event_hail_flag': mins_stacked.event_hail_flag,
             'max_pw': maxes_stacked.pw,
         },
     )
@@ -617,7 +647,7 @@ def plot_extrema(mins, maxes, file=None, figsize=(12, 12), hail_colour='#EC18DE'
     stats_table = stats.unstack().to_dataframe().reset_index()
     unit_renamer = {'degC': '$^{\circ}$C', 'kg m-2': 'km m$^{-2}$', 'm2 s-2': 'm$^2$ s$^{-2}$'}
 
-    hail_cols = {False: nohail_colour, True: hail_colour}
+    hail_cols = dict(enumerate(colours))
     _, axs = plt.subplots(ncols=2, nrows=6, figsize=figsize, gridspec_kw={'hspace': 0.3, 'wspace': 0.05})
 
     for i, v in enumerate(plot_cols):
@@ -626,7 +656,7 @@ def plot_extrema(mins, maxes, file=None, figsize=(12, 12), hail_colour='#EC18DE'
             y=v,
             x='mp_scheme',
             ax=axs.flat[i],
-            hue='event_includes_hail',
+            hue='event_hail_flag',
             width=0.5,
             legend=i == len(plot_cols) - 1,
             palette=hail_cols,
@@ -712,8 +742,8 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6, 4), file=None, damaging_th
     plt.show()
 
     hailcast_cases = int(
-        (spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hailcast_diam_max.max('timestep') > damaging_threshold).sum().values,
+        (spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hailcast_diam_max.max('timestep') >= damaging_threshold).sum().values,
     )
-    mp_cases = int((spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hail_maxk1.max('timestep') * 1000 > damaging_threshold).sum().values)
+    mp_cases = int((spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hail_maxk1.max('timestep') * 1000 >= damaging_threshold).sum().values)
 
     return hailcast_cases, mp_cases

@@ -9,7 +9,7 @@ import wrf
 import xarray
 from netCDF4 import Dataset
 
-files = sorted(glob('wrfout_d03*'))[-2:]
+files = sorted(glob('wrfout_*'))
 for filename in files:
     print(filename)
     nc = Dataset(filename)
@@ -50,7 +50,7 @@ for filename in files:
     for var in ['QHAIL', 'QNGRAUPEL', 'QNHAIL', 'QVGRAUPEL', 'QVHAIL', 'QSNOW', 'QGRAUP', 'QIR', 'QIB']:
         if var in nc.variables:
             n = xarray.Dataset({var.lower(): wrf.getvar(nc, var, timeidx=wrf.ALL_TIMES, squeeze=False)})
-            dat = xarray.merge([dat, n])
+            dat = xarray.merge([dat, n], compat='no_conflicts')
             del n
 
     assert not np.any(dat.pressure == dat.pressure.attrs['_FillValue'])
@@ -65,7 +65,7 @@ for filename in files:
                              'west_east': dat.west_east,
                              'bottom_top': dat.bottom_top})
 
-    assert np.all(dat.ter == dat.ter.max('time')), 'Terrain is not constant.'
+    assert np.all(dat.ter == dat.ter.max('time')), 'Terrain is not constant'
     dat['ter'] = dat.ter.max('time', keep_attrs=True)
 
     dat.attrs['projection'] = str(dat.u.attrs['projection'])

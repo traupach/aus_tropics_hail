@@ -14,6 +14,6 @@
 #PBS -N process_WRF_job
 
 module use /g/data/xp65/public/modules
-module load conda/analysis3-25.04
+module load conda/analysis3-26.01
 
-time python3 ~/git/kimberley_hail/scripts/process_WRF_basic.py
+time python3 ~/git/aus_tropics_hail/scripts/process_WRF_basic.py
