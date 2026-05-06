@@ -565,6 +565,9 @@ def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=
         dat['event_latitude'] = dat.latitude.mean(['timestep', 'south_north', 'west_east']).load()
         dat['event_longitude'] = dat.longitude.mean(['timestep', 'south_north', 'west_east']).load()
 
+        # Also assign whether the event contained hail per HAILCAST only.
+        dat['event_includes_hail'] = hailcast
+
         files = {}
         if not os.path.exists('results/spatial_means.nc'):
             print('Spatial means...')

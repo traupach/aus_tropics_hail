@@ -11,9 +11,9 @@ import modules.parcel_functions as parcel
 import numpy as np
 import xarray
 
-parcel.load_moist_adiabat_lookups(base_dir='~/')
+parcel.load_moist_adiabat_lookups(base_dir='/g/data/li18/tr2908/adiabat_lookups/')
 variables = ['pressure', 'temperature', 'rh', 'u', 'v', 'w', 'z', 'z_agl', 'dbz', 'td',
-             'specific_humidity', 'qvapor', 'qcloud', 'qrain', 'qice', 'qhail', 'qnhail', 
+             'specific_humidity', 'qvapor', 'qcloud', 'qrain', 'qice', 'qhail', 'qnhail',
              'qvhail', 'qgraupel', 'qngraupel', 'qvgraupel', 'qgraup']
 
 files = sorted(glob('basic_params*.nc'))
@@ -33,7 +33,7 @@ for filename in files:
         level = level.expand_dims({'pressure_level': [p]})
         levels.append(level)
 
-    levels = xarray.merge(levels)
+    levels = xarray.merge(levels, compat='no_conflicts')
     levels.pressure_level.attrs['long_name'] = 'Interpolated pressure level'
     levels.pressure_level.attrs['units'] = 'hPa'
 
