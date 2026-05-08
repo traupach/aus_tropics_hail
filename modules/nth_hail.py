@@ -183,7 +183,7 @@ def open_data(hail_detections, sims_dir, mps=None, basic=True, conv=True, interp
             all_dat.append(event_dat)
             del event_dat
 
-    all_dat = [x.stack({'event_scheme': ['event', 'mp_scheme']}) for x in all_dat]
+    all_dat = [x.stack({'event_scheme': ['event', 'mp_scheme']}) for x in all_dat]  # noqa: PD013
     return xarray.combine_nested(all_dat, concat_dim='event_scheme', combine_attrs='drop_conflicts', data_vars='all').unstack('event_scheme')
 
 
@@ -200,64 +200,74 @@ def plot_hail_simulations(dat, figsize=(9.6, 3), marker_size=80, r=0.2, xlim=Non
         file: Filename to write plot to.
 
     """
-    sims = dat[['event_includes_hail', 'event_latitude', 'event_longitude']].to_dataframe().reset_index()
+    assert not np.any(dat.sel(mp_scheme='P3-3M')['event_includes_hail_micro']), 'P3 is assumed not to contain hail_maxk1'
+    sims = dat[['event_includes_hail_hailcast', 'event_includes_hail_micro', 'event_latitude', 'event_longitude']].to_dataframe().reset_index()
 
     for i, mp in enumerate(dat.mp_scheme.values):
-        angle = 2 * math.pi * i / len(dat.mp_scheme)  # angle in radians
+        angle = 2 * math.pi * i / len(dat.mp_scheme)  # Angle in radians.
         sims.loc[sims.mp_scheme == mp, 'event_longitude'] += r * math.cos(angle)
         sims.loc[sims.mp_scheme == mp, 'event_latitude'] += +r * math.sin(angle)
 
-    sims = sims.rename(columns={'event_includes_hail': 'Hail', 'mp_scheme': 'MP scheme'})
+    _, axs = plt.subplots(subplot_kw={'projection': ccrs.PlateCarree()}, figsize=figsize, nrows=2)
 
-    _, ax = plt.subplots(subplot_kw={'projection': ccrs.PlateCarree()}, figsize=figsize)
-    sns.scatterplot(
-        data=sims,
-        x='event_longitude',
-        y='event_latitude',
-        s=marker_size,
-        markers=['X', 'o'],
-        hue='MP scheme',
-        style='Hail',
-        ax=ax,
-        transform=ccrs.PlateCarree(),
-    )
-    ax.coastlines()
+    titles = {'event_includes_hail_hailcast': 'HAILCAST', 'event_includes_hail_micro': 'Model microphysics'}
+    for i, ind in enumerate(['event_includes_hail_hailcast', 'event_includes_hail_micro']):
+        d = sims.copy()
+        if ind == 'event_includes_hail_micro':
+            d = d.where(d.mp_scheme != 'P3-3M') # P3-3M microphysics doesn't calculate surface hail diam.
+        d = d.rename(columns={ind: 'Hail', 'mp_scheme': 'MP scheme'})
 
-    if xlim is not None:
-        ax.set_xlim(xlim)
-    if ylim is not None:
-        ax.set_ylim(ylim)
+        sns.scatterplot(
+            data=d,
+            x='event_longitude',
+            y='event_latitude',
+            s=marker_size,
+            markers=['X', 'o'],
+            hue='MP scheme',
+            hue_order=['MY2', 'NSSL', 'P3-3M', 'Thompson'],
+            style='Hail',
+            ax=axs[i],
+            transform=ccrs.PlateCarree(),
+        )
+        axs[i].coastlines()
+        axs[i].set_title(titles[ind])
 
-    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, alpha=0.5)
-    gl.top_labels = gl.right_labels = False
+    for ax in axs:
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
 
-    ax.set_xlabel('Longitude [$^{\circ}$ E]')
-    ax.set_ylabel('Latitude [$^{\circ}$ S]')
+        gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, alpha=0.5)
+        gl.top_labels = gl.right_labels = False
 
-    sns.move_legend(ax, 'upper left', bbox_to_anchor=(1, 1.02))
+        ax.set_xlabel('Longitude [$^{\circ}$ E]')
+        ax.set_ylabel('Latitude [$^{\circ}$ S]')
 
-    # Add inset globe to show map location.
-    inset_ax = inset_axes(
-        ax,
-        width=1.5,
-        height=1.5,
-        loc='center left',
-        bbox_to_anchor=(0.975, 0.215),
-        bbox_transform=ax.transAxes,
-        borderpad=2,
-        axes_class=GeoAxes,
-        axes_kwargs={'projection': ccrs.NearsidePerspective(central_longitude=135, central_latitude=-25, satellite_height=35785831 / 5)},
-    )
-    inset_ax.add_feature(cfeature.LAND, zorder=0)
-    inset_ax.add_feature(cfeature.OCEAN, zorder=0)
-    inset_ax.add_feature(cfeature.COASTLINE)
+        sns.move_legend(ax, 'upper left', bbox_to_anchor=(1, 1.02))
 
-    # Patch to highlight plotted region.
-    extent_box = [(xlim[0], ylim[0]), (xlim[1], ylim[0]), (xlim[1], ylim[1]), (xlim[0], ylim[1]), (xlim[0], ylim[0])]
-    patch = Polygon(extent_box, closed=True, transform=ccrs.PlateCarree(), facecolor='red', edgecolor='black', linewidth=0.2, alpha=0.7)
-    inset_ax.add_patch(patch)
+        # Add inset globe to show map location.
+        inset_ax = inset_axes(
+            ax,
+            width=1.5,
+            height=1.5,
+            loc='center left',
+            bbox_to_anchor=(0.975, 0.215),
+            bbox_transform=ax.transAxes,
+            borderpad=2,
+            axes_class=GeoAxes,
+            axes_kwargs={'projection': ccrs.NearsidePerspective(central_longitude=135, central_latitude=-25, satellite_height=35785831 / 5)},
+        )
+        inset_ax.add_feature(cfeature.LAND, zorder=0)
+        inset_ax.add_feature(cfeature.OCEAN, zorder=0)
+        inset_ax.add_feature(cfeature.COASTLINE)
 
-    inset_ax.set_global()
+        # Patch to highlight plotted region.
+        extent_box = [(xlim[0], ylim[0]), (xlim[1], ylim[0]), (xlim[1], ylim[1]), (xlim[0], ylim[1]), (xlim[0], ylim[0])]
+        patch = Polygon(extent_box, closed=True, transform=ccrs.PlateCarree(), facecolor='red', edgecolor='black', linewidth=0.2, alpha=0.7)
+        inset_ax.add_patch(patch)
+
+        inset_ax.set_global()
 
     if file is not None:
         plt.savefig(file, dpi=300, bbox_inches='tight')
@@ -528,7 +538,7 @@ def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=
 
     """
     if results_files is None:
-        results_files = ['results/spatial_means.nc', 'results/spatial_maxes.nc', 'results/spatial_mins.nc']
+        results_files = ['results/spatial_means.nc', 'results/spatial_maxes.nc', 'results/spatial_mins.nc', 'results/spatial_counts.nc']
 
     if not np.all([os.path.exists(x) for x in results_files]):
         dat = open_data(hail_detections=hail_detections, sims_dir=sims_dir)
@@ -539,34 +549,13 @@ def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=
         dat['hail_maxk1'] = dat.hail_maxk1 * 1000
         dat.hail_maxk1.attrs['units'] = 'mm'
 
-        # Assign each event as one of "no hail", "hailcast only", "mp only", or "hailcast + mp".
-        hailcast = dat.hailcast_diam_max.max(['timestep', 'south_north', 'west_east']) >= hail_threshold
-        micro = dat.hail_maxk1.max(['timestep', 'south_north', 'west_east']) >= hail_threshold
+        # Assign flags for whether hailcast or microphysics scheme saw hail.
+        dat['event_includes_hail_hailcast'] = dat.hailcast_diam_max.max(['timestep', 'south_north', 'west_east']) >= hail_threshold
+        dat['event_includes_hail_micro'] = dat.hail_maxk1.max(['timestep', 'south_north', 'west_east']) >= hail_threshold
 
-        no_hail = np.logical_not(np.logical_or(hailcast, micro))        # No hail
-        hailcast_and_mp = np.logical_and(hailcast, micro)               # HAILCAST + MP
-        hailcast_only = np.logical_and(hailcast, np.logical_not(micro)) # HAILCAST only
-        mp_only = np.logical_and(np.logical_not(hailcast), micro)       # MP only
-
-        hail_flag = xarray.full_like(hailcast, fill_value = np.nan)
-        hail_flag = hail_flag.where(~no_hail, other='No hail')
-        hail_flag = hail_flag.where(~hailcast_and_mp, other='HAILCAST + MP')
-        hail_flag = hail_flag.where(~hailcast_only, other='HAILCAST only')
-        hail_flag = hail_flag.where(~mp_only, other='MP only')
-
-        hail_flag = hail_flag.load()
-        assert np.all(hail_flag.notnull()).values, 'Unassigned event type'
-
-        # Convert to Categorical because NetCDF doesn't compress string arrays very well.
-        cat = pd.Categorical(hail_flag.values.ravel())
-        codes = cat.codes.reshape(hail_flag.shape)
-        dat = dat.assign(event_hail_flag=(hail_flag.dims, codes))
-        dat['event_hail_flag'].attrs['categories'] = list(map(str, cat.categories))
         dat['event_latitude'] = dat.latitude.mean(['timestep', 'south_north', 'west_east']).load()
         dat['event_longitude'] = dat.longitude.mean(['timestep', 'south_north', 'west_east']).load()
-
-        # Also assign whether the event contained hail per HAILCAST only.
-        dat['event_includes_hail'] = hailcast
+        dat.attrs['hail_threshold'] = hail_threshold
 
         files = {}
         if not os.path.exists('results/spatial_means.nc'):
@@ -581,6 +570,16 @@ def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=
             print('Spatial mins...')
             spatial_mins = dat.min(['south_north', 'west_east'], keep_attrs=True).load()
             files['results/spatial_mins.nc'] = spatial_mins
+        if not os.path.exists('results/spatial_counts.nc'):
+            print('Spatial counts...')
+            updrafts = dat[['w_at_p']].max('pressure_level').rename({'w_at_p': 'updraft_area'}) > 10  # noqa: PLR2004
+            updrafts = updrafts.sum(['south_north', 'west_east'])
+            updrafts['event_includes_hail_hailcast'] = dat['event_includes_hail_hailcast']
+            updrafts['event_includes_hail_micro'] = dat['event_includes_hail_micro']
+            updrafts['updraft_area'].attrs['units'] = 'grid pts'
+            updrafts['updraft_area'].attrs['name'] = 'Updraft area'
+            updrafts['updraft_area'].attrs['description'] = 'Number of pixels with w > 10 m/s'
+            files['results/spatial_counts.nc'] = updrafts
 
         comp = {'zlib': True, 'complevel': 5}
         for file in files:
@@ -591,42 +590,65 @@ def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=
     spatial_means = xarray.open_dataset('results/spatial_means.nc')
     spatial_maxes = xarray.open_dataset('results/spatial_maxes.nc')
     spatial_mins = xarray.open_dataset('results/spatial_mins.nc')
+    spatial_counts = xarray.open_dataset('results/spatial_counts.nc')
 
-    for x in [spatial_means, spatial_maxes, spatial_mins]:
-        x.event_hail_flag.attrs['categories']
-
-    return spatial_means, spatial_maxes, spatial_mins
+    return spatial_means, spatial_maxes, spatial_mins, spatial_counts
 
 
-def plot_extrema(mins, maxes, file=None, figsize=(12, 12),
-                 colours=['#EC18DE', '#05A703','#1F77B4', '#FF7F0E']):
+def plot_extrema(
+    mins,
+    maxes,
+    counts,
+    file=None,
+    figsize=(12, 12.5),
+    colours=None,
+    hail_indicator='HAILCAST',
+):
     """Plot distributions of mins and maxes.
 
     Args:
         mins: Mins to plot.
         maxes: Maxes to plot.
+        counts: Counts to plot.
         file: Output file for plot.
         figsize: Figure size.
-        colour: Colours for event hail flags.
+        colours: Colours for event hail flags.
 
     """
-    mins_stacked = mins.stack({'sample': ['timestep', 'event']})
-    maxes_stacked = maxes.stack({'sample': ['timestep', 'event']})
+    if colours is None:
+        colours = ['#EC18DE', '#05A703', '#1F77B4', '#FF7F0E']
 
-    assert mins_stacked.event_hail_flag.equals(maxes_stacked.event_hail_flag), 'Mismatch in hail flags'
+    if hail_indicator == 'HAILCAST':
+        hail_flag = 'event_includes_hail_hailcast'
+        hail_diam = 'hailcast_diam_max'
+    elif hail_indicator == 'microphysics':
+        hail_flag = 'event_includes_hail_micro'
+        hail_diam = 'hail_maxk1'
+    else:
+        assert 1 == 0, 'hail_indicator must be HAILCAST or microphysics'
+
+    maxes['max_updraft'] = maxes.w_at_p.max(['pressure_level'], keep_attrs=True)
+    mins_stacked = mins.stack({'sample': ['timestep', 'event']})  # noqa: PD013
+    maxes_stacked = maxes.stack({'sample': ['timestep', 'event']})  # noqa: PD013
+    counts_stacked = counts.stack({'sample': ['timestep', 'event']})  # noqa: PD013
+
+    assert mins_stacked[hail_flag].equals(maxes_stacked[hail_flag]), 'Mismatch in hail flags'
+    assert mins_stacked[hail_flag].equals(counts_stacked[hail_flag]), 'Mismatch in hail flags'
     plot_cols = {
         'min_ctt': 'Minimum cloud top temperature',
         'min_updraft_helicity': 'Minimum updraft helicity',
         'max_mdbz': 'Maximum radar reflectivity',
-        'max_hailcast_diam': 'Maximum HAILCAST diameter',
+        'max_hail_diam': 'Maximum hail diameter',
         'max_graupel_max': 'Maximum column-integrated graupel',
         'max_shear_magnitude': 'Maximum 0-6 km bulk wind shear',
-        'min_freezing_level': 'Maximum freezing level height',
+        'min_melting_level': 'Minimum melting level height',
         'min_temp_500': 'Minimum temperature at 500 hPa',
         'max_cape': 'Maximum CAPE',
         'min_cin': 'Minimum CIN',
         'min_lapse_rate': 'Minimum 700 hPa to 500 hPa lapse rate',
         'max_pw': 'Maximum precipitable water',
+        'max_updraft': 'Maximum updraft',
+        'updraft_area': 'Updraft area',
     }
 
     stats = xarray.Dataset(
@@ -634,16 +656,18 @@ def plot_extrema(mins, maxes, file=None, figsize=(12, 12),
             'min_ctt': mins_stacked.ctt,
             'min_updraft_helicity': mins_stacked.updraft_helicity,
             'max_mdbz': maxes_stacked.mdbz,
-            'max_hailcast_diam': maxes_stacked.hailcast_diam_max,
+            'max_hail_diam': maxes_stacked[hail_diam],
             'max_graupel_max': maxes_stacked.graupel_max,
             'max_shear_magnitude': maxes_stacked.shear_magnitude,
-            'min_freezing_level': mins_stacked.freezing_level,
+            'min_melting_level': mins_stacked.melting_level,
             'min_temp_500': mins_stacked.temp_500,
             'max_cape': maxes_stacked.mixed_100_cape,
             'min_cin': mins_stacked.mixed_100_cin,
             'min_lapse_rate': mins_stacked.lapse_rate_700_500,
-            'event_hail_flag': mins_stacked.event_hail_flag,
+            hail_flag: mins_stacked[hail_flag],
             'max_pw': maxes_stacked.pw,
+            'max_updraft': maxes_stacked.max_updraft,
+            'updraft_area': counts_stacked.updraft_area,
         },
     )
 
@@ -651,7 +675,7 @@ def plot_extrema(mins, maxes, file=None, figsize=(12, 12),
     unit_renamer = {'degC': '$^{\circ}$C', 'kg m-2': 'km m$^{-2}$', 'm2 s-2': 'm$^2$ s$^{-2}$'}
 
     hail_cols = dict(enumerate(colours))
-    _, axs = plt.subplots(ncols=2, nrows=6, figsize=figsize, gridspec_kw={'hspace': 0.3, 'wspace': 0.05})
+    _, axs = plt.subplots(ncols=2, nrows=7, figsize=figsize, gridspec_kw={'hspace': 0.3, 'wspace': 0.05})
 
     for i, v in enumerate(plot_cols):
         sns.boxplot(
@@ -659,7 +683,7 @@ def plot_extrema(mins, maxes, file=None, figsize=(12, 12),
             y=v,
             x='mp_scheme',
             ax=axs.flat[i],
-            hue='event_hail_flag',
+            hue=hail_flag,
             width=0.5,
             legend=i == len(plot_cols) - 1,
             palette=hail_cols,
@@ -680,7 +704,7 @@ def plot_extrema(mins, maxes, file=None, figsize=(12, 12),
             axs.flat[i].yaxis.tick_right()
             axs.flat[i].yaxis.set_label_position('right')
 
-    sns.move_legend(axs.flat[i], 'center', bbox_to_anchor=(0, -0.75), title='Surface hail')
+    sns.move_legend(axs.flat[i], 'center', bbox_to_anchor=(0, -0.75), title=f'Surface hail ({hail_indicator})')
 
     if file is not None:
         plt.savefig(file, dpi=300, bbox_inches='tight')
@@ -704,7 +728,7 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6, 4), file=None, damaging_th
         renamer = {'hail_maxk1': 'MP scheme', 'hailcast_diam_max': 'HAILCAST'}
 
     surface_hailsizes = spatial_maxes[['hail_maxk1', 'hailcast_diam_max']].to_dataframe().reset_index()
-    surface_hailsizes['hail_maxk1'] = surface_hailsizes['hail_maxk1'] * 1000  # Adjust from m to mm
+    surface_hailsizes['hail_maxk1'] = surface_hailsizes['hail_maxk1']
     surface_hailsizes['hail_maxk1'] = surface_hailsizes['hail_maxk1'].where(surface_hailsizes['hail_maxk1'] > 0)
     surface_hailsizes['hailcast_diam_max'] = surface_hailsizes['hailcast_diam_max'].where(surface_hailsizes['hailcast_diam_max'] > 0)
 
@@ -747,6 +771,55 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6, 4), file=None, damaging_th
     hailcast_cases = int(
         (spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hailcast_diam_max.max('timestep') >= damaging_threshold).sum().values,
     )
-    mp_cases = int((spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hail_maxk1.max('timestep') * 1000 >= damaging_threshold).sum().values)
+    mp_cases = int((spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hail_maxk1.max('timestep') >= damaging_threshold).sum().values)
 
     return hailcast_cases, mp_cases
+
+
+def confusion_matrix(dat, hailcast='event_includes_hail_hailcast', micro='event_includes_hail_micro', figsize=(12, 3.5), file=None):
+    """Plot and return confusion matrices by MP scheme."""
+    rows = []
+    for mp in ['All', *list(np.unique(dat.mp_scheme))]:
+        d = dat if mp == 'All' else dat.sel(mp_scheme=mp)
+
+        H_M = int(np.sum(np.logical_and(d[hailcast], d[micro])))  # noqa: N806
+        NH_M = int(np.sum(np.logical_and(~d[hailcast], d[micro])))  # noqa: N806
+        H_NM = int(np.sum(np.logical_and(d[hailcast], ~d[micro])))  # noqa: N806
+        NH_NM = int(np.sum(np.logical_and(~d[hailcast], ~d[micro])))  # noqa: N806
+
+        rows.append(pd.DataFrame({'scheme': [mp], 'hailcast': True, 'micro': True, 'n': H_M}))
+        rows.append(pd.DataFrame({'scheme': [mp], 'hailcast': False, 'micro': True, 'n': NH_M}))
+        rows.append(pd.DataFrame({'scheme': [mp], 'hailcast': True, 'micro': False, 'n': H_NM}))
+        rows.append(pd.DataFrame({'scheme': [mp], 'hailcast': False, 'micro': False, 'n': NH_NM}))
+
+    con = pd.concat(rows)
+
+    g = sns.FacetGrid(con, col='scheme')
+
+    def draw_heatmap(data, **kwargs):
+        table = data.pivot(index='hailcast', columns='micro', values='n')
+
+        total = table.values.sum()
+        pct = 100 * table / total
+        annot = table.astype(str) + '\n(' + pct.round(0).astype(str) + '%)'
+
+        ax = sns.heatmap(table, annot=annot, fmt='', cmap='Blues', cbar=False, square=True, linewidths=0.5, linecolor='black')
+        ax.set_xlabel('Microphysics')
+        ax.set_ylabel('HAILCAST')
+
+        for spine in ax.spines.values():
+            spine.set_visible(True)
+            spine.set_linewidth(1)
+            spine.set_edgecolor('black')
+
+    g.map_dataframe(draw_heatmap)
+    g.set_titles('{col_name}')
+    g.fig.set_size_inches(figsize)
+
+    plt.tight_layout()
+    plt.show()
+
+    if file is not None:
+        plt.savefig(file, dpi=300, bbox_inches='tight')
+
+    return con
