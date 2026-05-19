@@ -817,9 +817,8 @@ def confusion_matrix(dat, hailcast='event_includes_hail_hailcast', micro='event_
     g.fig.set_size_inches(figsize)
 
     plt.tight_layout()
-    plt.show()
-
     if file is not None:
         plt.savefig(file, dpi=300, bbox_inches='tight')
 
+    plt.show()
     return con
