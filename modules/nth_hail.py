@@ -108,7 +108,7 @@ def set_up_WRF(lat, lon, year, month, day, hour, minute, start_time, end_time, n
             print(f'Skipping existing WRF/{mp}...')
 
 
-def open_data(hail_detections, sims_dir, mps=None, basic=True, conv=True, interp=True):
+def open_data(hail_detections, sims_dir, mps=None, basic=True, conv=True, interp=True, domain='d03', subset_to_inner=False):
     """Open the data for the tropical hail experiments.
 
     Arguments:
@@ -116,6 +116,7 @@ def open_data(hail_detections, sims_dir, mps=None, basic=True, conv=True, interp
         sims_dir: The base directory for the model outputs.
         mps: The names of the microphysics schemes to read in.
         domain: The name of the WRF domain to read and match with other data.
+        subset_to_inner: Only return for the inner part of the domain (ie that overlaps with a nested inner domain)?
         basic: include basic data?
         conv: include convective data?
         interp: include interpolated levels?
@@ -149,22 +150,28 @@ def open_data(hail_detections, sims_dir, mps=None, basic=True, conv=True, interp
 
             # Open basic data.
             if basic:
-                event_basic = xarray.open_mfdataset(f'{dr}/basic*.nc', parallel=True, chunks={'time': 30}, data_vars='all')
+                event_basic = xarray.open_mfdataset(f'{dr}/basic_params_{domain}_*.nc', parallel=True, chunks={'time': 30}, data_vars='all')
                 event_basic = event_basic[
                     ['hailcast_diam_max', 'latitude', 'longitude', 'mdbz', 'ctt', 'pw', 'graupel_max', 'updraft_helicity', 'hail_maxk1']
                 ]
 
             # Open conv data.
             if conv:
-                event_conv = xarray.open_mfdataset(f'{dr}/conv*.nc', parallel=True)
+                event_conv = xarray.open_mfdataset(f'{dr}/conv_params_{domain}_*.nc', parallel=True)
 
             # Open pressure-level interpolated fields.
             if interp:
-                event_pressure_level = xarray.open_mfdataset(f'{dr}/pressure_level*.nc', parallel=True)
+                event_pressure_level = xarray.open_mfdataset(f'{dr}/pressure_level_params_{domain}_*.nc', parallel=True)
                 event_pressure_level = event_pressure_level.rename({x: f'{x}_at_p' for x in event_pressure_level})
 
             event_dat = xarray.merge([event_conv, event_pressure_level, event_basic])
             del event_conv, event_pressure_level, event_basic
+
+            # Spatial subset?
+            if subset_to_inner:
+                assert len(event_dat.south_north) == 120, 'Expected domain of 120x120'  # noqa: PLR2004
+                assert len(event_dat.west_east) == 120, 'Expected domain of 120x120'  # noqa: PLR2004
+                event_dat = event_dat.isel(south_north=slice(39, 79), west_east=slice(39, 79))
 
             # Add event information.
             event_dat['event'] = i + 1
@@ -214,7 +221,7 @@ def plot_hail_simulations(dat, figsize=(9.6, 3), marker_size=80, r=0.2, xlim=Non
     for i, ind in enumerate(['event_includes_hail_hailcast', 'event_includes_hail_micro']):
         d = sims.copy()
         if ind == 'event_includes_hail_micro':
-            d = d.where(d.mp_scheme != 'P3-3M') # P3-3M microphysics doesn't calculate surface hail diam.
+            d = d.where(d.mp_scheme != 'P3-3M')  # P3-3M microphysics doesn't calculate surface hail diam.
         d = d.rename(columns={ind: 'Hail', 'mp_scheme': 'MP scheme'})
 
         sns.scatterplot(
@@ -526,22 +533,41 @@ def skew_T_comp(
     plt.show()
 
 
-def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=slice(-24, -12), hail_threshold=20):
+def read_data(
+    hail_detections,
+    sims_dir,
+    domain,
+    subset_to_inner=False,
+    results_files=None,
+    analysis_timesteps=slice(-24, -12),
+    hail_threshold=20,
+    domain_map=None,
+):
     """Read data from all simulations and make spatial stats. Cache as required.
 
     Args:
         hail_detections: Hail detections to read for.
         sims_dir: Directory where simulations are stored.
+        domain: Domain to read for.
+        subset_to_inner: Subset to inner domain (to cover nested region)?
         results_files: Files to read for results.
         analysis_timesteps: Timesteps to analyse (default: hour of the event).
         hail_threshold: Require hail to be over this many mm to count as hail.
+        domain_map: Domain names per WRF domain.
 
     """
     if results_files is None:
-        results_files = ['results/spatial_means.nc', 'results/spatial_maxes.nc', 'results/spatial_mins.nc', 'results/spatial_counts.nc']
+        results_files = [
+            f'results/spatial_means_{domain}.nc',
+            f'results/spatial_maxes_{domain}.nc',
+            f'results/spatial_mins_{domain}.nc',
+            f'results/spatial_counts_{domain}.nc',
+        ]
+    if domain_map is None:
+        domain_map = {'d02': '3 km', 'd03': '1 km'}
 
     if not np.all([os.path.exists(x) for x in results_files]):
-        dat = open_data(hail_detections=hail_detections, sims_dir=sims_dir)
+        dat = open_data(hail_detections=hail_detections, sims_dir=sims_dir, domain=domain, subset_to_inner=subset_to_inner)
         dat = dat.chunk({'event': 5, 'mp_scheme': 1, 'south_north': -1, 'west_east': -1, 'pressure_level': -1, 'timestep': 12})
         dat = dat.isel(timestep=analysis_timesteps)
 
@@ -558,19 +584,19 @@ def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=
         dat.attrs['hail_threshold'] = hail_threshold
 
         files = {}
-        if not os.path.exists('results/spatial_means.nc'):
+        if not os.path.exists(f'results/spatial_means_{domain}.nc'):
             print('Spatial means...')
             spatial_means = dat.mean(['south_north', 'west_east'], keep_attrs=True).load()
-            files['results/spatial_means.nc'] = spatial_means
-        if not os.path.exists('results/spatial_maxes.nc'):
+            files[f'results/spatial_means_{domain}.nc'] = spatial_means
+        if not os.path.exists('results/spatial_maxes_{domain}.nc'):
             print('Spatial maxes...')
             spatial_maxes = dat.max(['south_north', 'west_east'], keep_attrs=True).load()
-            files['results/spatial_maxes.nc'] = spatial_maxes
-        if not os.path.exists('results/spatial_mins.nc'):
+            files[f'results/spatial_maxes_{domain}.nc'] = spatial_maxes
+        if not os.path.exists(f'results/spatial_mins_{domain}.nc'):
             print('Spatial mins...')
             spatial_mins = dat.min(['south_north', 'west_east'], keep_attrs=True).load()
-            files['results/spatial_mins.nc'] = spatial_mins
-        if not os.path.exists('results/spatial_counts.nc'):
+            files[f'results/spatial_mins_{domain}.nc'] = spatial_mins
+        if not os.path.exists(f'results/spatial_counts_{domain}.nc'):
             print('Spatial counts...')
             updrafts = dat[['w_at_p']].max('pressure_level').rename({'w_at_p': 'updraft_area'}) > 10  # noqa: PLR2004
             updrafts = updrafts.sum(['south_north', 'west_east'])
@@ -579,7 +605,7 @@ def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=
             updrafts['updraft_area'].attrs['units'] = 'grid pts'
             updrafts['updraft_area'].attrs['name'] = 'Updraft area'
             updrafts['updraft_area'].attrs['description'] = 'Number of pixels with w > 10 m/s'
-            files['results/spatial_counts.nc'] = updrafts
+            files[f'results/spatial_counts_{domain}.nc'] = updrafts
 
         comp = {'zlib': True, 'complevel': 5}
         for file in files:
@@ -587,10 +613,10 @@ def read_data(hail_detections, sims_dir, results_files=None, analysis_timesteps=
             encoding = {var: comp for var in ds.data_vars}
             ds.to_netcdf(file, encoding=encoding)
 
-    spatial_means = xarray.open_dataset('results/spatial_means.nc')
-    spatial_maxes = xarray.open_dataset('results/spatial_maxes.nc')
-    spatial_mins = xarray.open_dataset('results/spatial_mins.nc')
-    spatial_counts = xarray.open_dataset('results/spatial_counts.nc')
+    spatial_means = xarray.open_dataset(f'results/spatial_means_{domain}.nc').expand_dims({'domain': [domain_map[domain]]})
+    spatial_maxes = xarray.open_dataset(f'results/spatial_maxes_{domain}.nc').expand_dims({'domain': [domain_map[domain]]})
+    spatial_mins = xarray.open_dataset(f'results/spatial_mins_{domain}.nc').expand_dims({'domain': [domain_map[domain]]})
+    spatial_counts = xarray.open_dataset(f'results/spatial_counts_{domain}.nc').expand_dims({'domain': [domain_map[domain]]})
 
     return spatial_means, spatial_maxes, spatial_mins, spatial_counts
 
@@ -613,19 +639,28 @@ def plot_extrema(
         file: Output file for plot.
         figsize: Figure size.
         colours: Colours for event hail flags.
+        hail_indicator: either 'HAILCAST' or 'microphysics'.
 
     """
     if colours is None:
         colours = ['#EC18DE', '#05A703', '#1F77B4', '#FF7F0E']
 
-    if hail_indicator == 'HAILCAST':
-        hail_flag = 'event_includes_hail_hailcast'
-        hail_diam = 'hailcast_diam_max'
-    elif hail_indicator == 'microphysics':
-        hail_flag = 'event_includes_hail_micro'
-        hail_diam = 'hail_maxk1'
-    else:
-        assert 1 == 0, 'hail_indicator must be HAILCAST or microphysics'
+    hail_config = {
+        'HAILCAST': (
+            'event_includes_hail_hailcast',
+            'hailcast_diam_max',
+        ),
+        'microphysics': (
+            'event_includes_hail_micro',
+            'hail_maxk1',
+        ),
+    }
+
+    try:
+        hail_flag, hail_diam = hail_config[hail_indicator]
+    except KeyError as exc:
+        msg = 'hail_indicator must be HAILCAST or microphysics'
+        raise ValueError(msg) from exc
 
     maxes['max_updraft'] = maxes.w_at_p.max(['pressure_level'], keep_attrs=True)
     mins_stacked = mins.stack({'sample': ['timestep', 'event']})  # noqa: PD013
@@ -776,32 +811,40 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6, 4), file=None, damaging_th
     return hailcast_cases, mp_cases
 
 
-def confusion_matrix(dat, hailcast='event_includes_hail_hailcast', micro='event_includes_hail_micro', figsize=(12, 3.5), file=None):
-    """Plot and return confusion matrices by MP scheme."""
+def confusion_matrix(
+    dat,
+    hailcast='event_includes_hail_hailcast',
+    micro='event_includes_hail_micro',
+    figsize=(12, 3.5),
+    file=None,
+):
+    """Plot and return confusion matrices by MP scheme and domain."""
     rows = []
-    for mp in ['All', *list(np.unique(dat.mp_scheme))]:
-        d = dat if mp == 'All' else dat.sel(mp_scheme=mp)
 
-        H_M = int(np.sum(np.logical_and(d[hailcast], d[micro])))  # noqa: N806
-        NH_M = int(np.sum(np.logical_and(~d[hailcast], d[micro])))  # noqa: N806
-        H_NM = int(np.sum(np.logical_and(d[hailcast], ~d[micro])))  # noqa: N806
-        NH_NM = int(np.sum(np.logical_and(~d[hailcast], ~d[micro])))  # noqa: N806
+    for dd in dat.domain.values:
+        for mp in ['All', *list(np.unique(dat.mp_scheme))]:
+            d = dat.sel(domain=dd) if mp == 'All' else dat.sel(mp_scheme=mp, domain=dd)
 
-        rows.append(pd.DataFrame({'scheme': [mp], 'hailcast': True, 'micro': True, 'n': H_M}))
-        rows.append(pd.DataFrame({'scheme': [mp], 'hailcast': False, 'micro': True, 'n': NH_M}))
-        rows.append(pd.DataFrame({'scheme': [mp], 'hailcast': True, 'micro': False, 'n': H_NM}))
-        rows.append(pd.DataFrame({'scheme': [mp], 'hailcast': False, 'micro': False, 'n': NH_NM}))
+            H_M = int(np.sum(np.logical_and(d[hailcast], d[micro])))  # noqa: N806
+            NH_M = int(np.sum(np.logical_and(~d[hailcast], d[micro])))  # noqa: N806
+            H_NM = int(np.sum(np.logical_and(d[hailcast], ~d[micro])))  # noqa: N806
+            NH_NM = int(np.sum(np.logical_and(~d[hailcast], ~d[micro])))  # noqa: N806
+
+            rows.append(pd.DataFrame({'domain': [dd], 'scheme': [mp], 'hailcast': True, 'micro': True, 'n': H_M}))
+            rows.append(pd.DataFrame({'domain': [dd], 'scheme': [mp], 'hailcast': False, 'micro': True, 'n': NH_M}))
+            rows.append(pd.DataFrame({'domain': [dd], 'scheme': [mp], 'hailcast': True, 'micro': False, 'n': H_NM}))
+            rows.append(pd.DataFrame({'domain': [dd], 'scheme': [mp], 'hailcast': False, 'micro': False, 'n': NH_NM}))
 
     con = pd.concat(rows)
 
-    g = sns.FacetGrid(con, col='scheme')
+    g = sns.FacetGrid(con, col='scheme', row='domain', sharex=True, sharey=True)
 
-    def draw_heatmap(data, **kwargs):
+    def draw_heatmap(data, **kwargs):  # noqa: ARG001
         table = data.pivot(index='hailcast', columns='micro', values='n')
 
         total = table.values.sum()
         pct = 100 * table / total
-        annot = table.astype(str) + '\n(' + pct.round(0).astype(str) + '%)'
+        annot = table.astype(str) + '\n(' + pct.round(0).astype(int).astype(str) + '%)'
 
         ax = sns.heatmap(table, annot=annot, fmt='', cmap='Blues', cbar=False, square=True, linewidths=0.5, linecolor='black')
         ax.set_xlabel('Microphysics')
@@ -813,7 +856,7 @@ def confusion_matrix(dat, hailcast='event_includes_hail_hailcast', micro='event_
             spine.set_edgecolor('black')
 
     g.map_dataframe(draw_heatmap)
-    g.set_titles('{col_name}')
+    g.set_titles(row_template='{row_name}', col_template='{col_name}')
     g.fig.set_size_inches(figsize)
 
     plt.tight_layout()
