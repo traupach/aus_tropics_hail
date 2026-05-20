@@ -760,7 +760,7 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6, 4), file=None, damaging_th
 
     """
     if renamer is None:
-        renamer = {'hail_maxk1': 'MP hail', 'hailcast_diam_max': 'HAILCAST'}
+        renamer = {'hail_maxk1': 'Microphysics', 'hailcast_diam_max': 'HAILCAST'}
 
     surface_hailsizes = spatial_maxes[['hail_maxk1', 'hailcast_diam_max']].to_dataframe().reset_index()
     surface_hailsizes['hail_maxk1'] = surface_hailsizes['hail_maxk1']
