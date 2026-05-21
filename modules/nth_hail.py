@@ -649,15 +649,17 @@ def plot_extrema(
         'HAILCAST': (
             'event_includes_hail_hailcast',
             'hailcast_diam_max',
+            [],
         ),
         'microphysics': (
             'event_includes_hail_micro',
             'hail_maxk1',
+            ['P3-3M'],
         ),
     }
 
     try:
-        hail_flag, hail_diam = hail_config[hail_indicator]
+        hail_flag, hail_diam, drop_mps = hail_config[hail_indicator]
     except KeyError as exc:
         msg = 'hail_indicator must be HAILCAST or microphysics'
         raise ValueError(msg) from exc
@@ -705,6 +707,8 @@ def plot_extrema(
             'updraft_area': counts_stacked.updraft_area,
         },
     )
+
+    stats = stats.sel(mp_scheme=[mp for mp in stats.mp_scheme.values if mp not in drop_mps])
 
     stats_table = stats.unstack().to_dataframe().reset_index()
     unit_renamer = {'degC': '$^{\circ}$C', 'kg m-2': 'km m$^{-2}$', 'm2 s-2': 'm$^2$ s$^{-2}$'}
