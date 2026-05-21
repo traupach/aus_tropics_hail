@@ -415,6 +415,7 @@ def skew_T_comp(
     wspace=0.1,
     hspace=0.1,
     file=None,
+    hail_indicator='HAILCAST'
 ):
     """Compare Skew_Ts per mp scheme.
 
@@ -439,14 +440,35 @@ def skew_T_comp(
     if xticks is None:
         xticks = [-30, -15, 0, 15, 30]
 
+    hail_config = {
+        'HAILCAST': (
+            'event_includes_hail_hailcast',
+            [],
+        ),
+        'microphysics': (
+            'event_includes_hail_micro',
+            ['P3-3M'],
+        ),
+    }
+
+    try:
+        hail_flag, drop_mps = hail_config[hail_indicator]
+    except KeyError as exc:
+        valid = ', '.join(repr(k) for k in hail_config)
+        msg = f'hail_indicator must be one of: {valid}'
+        raise ValueError(msg) from exc
+
     mps = np.unique(dat.mp_scheme.values)
-    hail_profs = dat.isel(timestep=time_slice).where(dat.event_includes_hail == True)  # noqa: E712
-    nohail_profs = dat.isel(timestep=time_slice).where(dat.event_includes_hail == False)  # noqa: E712
+    hail_profs = dat.isel(timestep=time_slice).where(dat[hail_flag] == True)  # noqa: E712
+    nohail_profs = dat.isel(timestep=time_slice).where(dat[hail_flag] == False)  # noqa: E712
+
+    hail_profs = hail_profs.sel(mp_scheme=[mp for mp in hail_profs.mp_scheme.values if mp not in drop_mps])
+    nohail_profs = nohail_profs.sel(mp_scheme=[mp for mp in nohail_profs.mp_scheme.values if mp not in drop_mps])
 
     fig = plt.figure(figsize=figsize)
     gs = gridspec.GridSpec(1, len(mps) + 1, wspace=wspace, hspace=hspace)
 
-    for i, mp in enumerate(mps):
+    for i, mp in enumerate([mp for mp in mps if mp not in drop_mps]):
         skew = SkewT(fig, subplot=gs[i])
 
         p = hail_profs.pressure_level.values * units.hPa
@@ -661,7 +683,8 @@ def plot_extrema(
     try:
         hail_flag, hail_diam, drop_mps = hail_config[hail_indicator]
     except KeyError as exc:
-        msg = 'hail_indicator must be HAILCAST or microphysics'
+        valid = ', '.join(repr(k) for k in hail_config)
+        msg = f'hail_indicator must be one of: {valid}'
         raise ValueError(msg) from exc
 
     maxes['max_updraft'] = maxes.w_at_p.max(['pressure_level'], keep_attrs=True)
