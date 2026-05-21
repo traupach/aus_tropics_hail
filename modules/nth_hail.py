@@ -295,6 +295,7 @@ def comp_profiles(
     wspace=0.1,
     hspace=0.32,
     mps=None,
+    hail_indicator='HAILCAST',
 ):
     """Compare vertical profiles of seleted variables by hail/no hail.
 
@@ -311,26 +312,46 @@ def comp_profiles(
         wspace: Width spacing for subplots.
         hspace: Height spacing for subplots.
         mps: MP schemes to plot, in row order.
+        hail_indicator: Which hail indicator to use - HAILCAST or microphysics?
 
     """
     if mps is None:
         mps = ['MY2', 'NSSL', 'Thompson', 'P3-3M']
 
-    v = [*variables, 'event_includes_hail']
+    hail_config = {
+            'HAILCAST': (
+                'event_includes_hail_hailcast',
+                [],
+            ),
+            'microphysics': (
+                'event_includes_hail_micro',
+                ['P3-3M'],
+            ),
+        }
 
-    means = dat[v].isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', 'event_includes_hail']).mean()
-    sds = dat[v].isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', 'event_includes_hail']).std()
+    try:
+        hail_flag, drop_mps = hail_config[hail_indicator]
+    except KeyError as exc:
+        valid = ', '.join(repr(k) for k in hail_config)
+        msg = f'hail_indicator must be one of: {valid}'
+        raise ValueError(msg) from exc
+
+    v = [*variables, hail_flag]
+    mps = [mp for mp in mps if mp not in drop_mps]
+
+    means = dat[v].sel(mp_scheme=mps).isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', hail_flag]).mean(numeric_only=True)
+    sds = dat[v].sel(mp_scheme=mps).isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', hail_flag]).std(numeric_only=True)
 
     means = means.drop(columns=['timestep', 'event'])
     sds = sds.drop(columns=['timestep', 'event'])
 
-    means = means.reset_index().melt(id_vars=['mp_scheme', 'pressure_level', 'event_includes_hail'], value_name='mean')
-    sds = sds.reset_index().melt(id_vars=['mp_scheme', 'pressure_level', 'event_includes_hail'], value_name='std')
+    means = means.reset_index().melt(id_vars=['mp_scheme', 'pressure_level', hail_flag], value_name='mean')
+    sds = sds.reset_index().melt(id_vars=['mp_scheme', 'pressure_level', hail_flag], value_name='std')
 
-    means = means.set_index(['mp_scheme', 'pressure_level', 'event_includes_hail', 'variable'])
-    sds = sds.set_index(['mp_scheme', 'pressure_level', 'event_includes_hail', 'variable'])
+    means = means.set_index(['mp_scheme', 'pressure_level', hail_flag, 'variable'])
+    sds = sds.set_index(['mp_scheme', 'pressure_level', hail_flag, 'variable'])
     stats = means.join(sds).reset_index()
-    stats = stats.sort_values(['mp_scheme', 'event_includes_hail', 'pressure_level'])
+    stats = stats.sort_values(['mp_scheme', hail_flag, 'pressure_level'])
 
     stats['min'] = stats['mean'] - stats['std']
     stats['max'] = stats['mean'] + stats['std']
@@ -355,7 +376,7 @@ def comp_profiles(
                 s,
                 x='mean',
                 y='pressure_level',
-                hue='event_includes_hail',
+                hue=hail_flag,
                 ax=axs[m, i],
                 sort=False,
                 estimator=None,
@@ -364,7 +385,7 @@ def comp_profiles(
             )
 
             for ih in [False, True]:
-                rib = s[s.event_includes_hail == ih]
+                rib = s[s[hail_flag] == ih]
                 axs[m, i].fill_betweenx(rib['pressure_level'], rib['mean'] - rib['std'], rib['mean'] + rib['std'], color=hail_cols[ih], alpha=0.2)
 
             axs[m, i].invert_yaxis()
@@ -415,7 +436,7 @@ def skew_T_comp(
     wspace=0.1,
     hspace=0.1,
     file=None,
-    hail_indicator='HAILCAST'
+    hail_indicator='HAILCAST',
 ):
     """Compare Skew_Ts per mp scheme.
 
