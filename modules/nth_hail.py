@@ -296,6 +296,7 @@ def comp_profiles(
     hspace=0.32,
     mps=None,
     hail_indicator='HAILCAST',
+    leg_pos=-0.05,
 ):
     """Compare vertical profiles of seleted variables by hail/no hail.
 
@@ -313,6 +314,7 @@ def comp_profiles(
         hspace: Height spacing for subplots.
         mps: MP schemes to plot, in row order.
         hail_indicator: Which hail indicator to use - HAILCAST or microphysics?
+        leg_pos: Legend y position.
 
     """
     if mps is None:
@@ -414,7 +416,7 @@ def comp_profiles(
         Patch(facecolor=nohail_colour, label='No-hail-event std. dev. range', alpha=0.5),
     ]
 
-    fig.legend(handles=legend_elements, loc='lower center', bbox_to_anchor=(0.5, -0.05))
+    fig.legend(handles=legend_elements, loc='lower center', bbox_to_anchor=(0.5, leg_pos))
 
     if file is not None:
         plt.savefig(file, dpi=300, bbox_inches='tight')
