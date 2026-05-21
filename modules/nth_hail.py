@@ -769,23 +769,11 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6, 4), file=None, damaging_th
 
     # True/False when hailcast or MP scheme shows damaging hail.
     damaging_occurrences = surface_hailsizes[['domain', 'mp_scheme', 'event', 'hailcast_diam_max', 'hail_maxk1']].copy()
+    damaging_occurrences['any_hail_hailcast_diam_max'] = damaging_occurrences['hailcast_diam_max'] >= 0
+    damaging_occurrences['any_hail_hail_maxk1'] = damaging_occurrences['hail_maxk1'] >= 0
     damaging_occurrences['hailcast_diam_max'] = damaging_occurrences['hailcast_diam_max'] >= damaging_threshold
     damaging_occurrences['hail_maxk1'] = damaging_occurrences['hail_maxk1'] >= damaging_threshold
-    damaging_events = (
-        (
-            damaging_occurrences.groupby(
-                [
-                    'domain',
-                    'mp_scheme',
-                    'event',
-                ]
-            ).sum()
-            > 0
-        )
-        .groupby(['domain', 'mp_scheme'])
-        .sum()
-        .reset_index()
-    )
+    damaging_events = (damaging_occurrences.groupby(['domain', 'mp_scheme', 'event']).sum() > 0).groupby(['domain', 'mp_scheme']).sum().reset_index()
 
     surface_hailsizes = surface_hailsizes.dropna(how='all', subset=['hail_maxk1', 'hailcast_diam_max'])
     surface_hailsizes = surface_hailsizes.rename(columns=renamer)
@@ -817,7 +805,10 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6, 4), file=None, damaging_th
                 txt = damaging_events.loc[
                         (damaging_events['mp_scheme'] == mp) &
                         (damaging_events['domain'] == d), x].iloc[0]
-                if txt != 0:
+                any_txt = damaging_events.loc[
+                        (damaging_events['mp_scheme'] == mp) &
+                        (damaging_events['domain'] == d), f'any_hail_{x}'].iloc[0]
+                if any_txt != 0:
                     ax.text(x=from_x + offset, y=-15, ha='center', s=txt)
 
     if file is not None:
