@@ -620,6 +620,11 @@ def read_data(
         dat['hail_maxk1'] = dat.hail_maxk1 * 1000
         dat.hail_maxk1.attrs['units'] = 'mm'
 
+        # Calculate CAPExS06.
+        dat['SIGSEV'] = dat.mixed_100_cape * dat.shear_magnitude
+        dat['SIGSEV'].attrs['description'] = 'CAPExS06 with MLCAPE over lowest 100 hPa'
+        dat['SIGSEV'].attrs['units'] = 'm$^3$ s$^{-3}$'
+
         # Assign flags for whether hailcast or microphysics scheme saw hail.
         dat['event_includes_hail_hailcast'] = dat.hailcast_diam_max.max(['timestep', 'south_north', 'west_east']) >= hail_threshold
         dat['event_includes_hail_micro'] = dat.hail_maxk1.max(['timestep', 'south_north', 'west_east']) >= hail_threshold
@@ -718,20 +723,21 @@ def plot_extrema(
     assert mins_stacked[hail_flag].equals(maxes_stacked[hail_flag]), 'Mismatch in hail flags'
     assert mins_stacked[hail_flag].equals(counts_stacked[hail_flag]), 'Mismatch in hail flags'
     plot_cols = {
-        'min_ctt': 'Minimum cloud top temperature',
-        'min_updraft_helicity': 'Minimum updraft helicity',
-        'max_mdbz': 'Maximum radar reflectivity',
-        'max_hail_diam': 'Maximum hail diameter',
-        'max_graupel_max': 'Maximum column-integrated graupel',
-        'max_shear_magnitude': 'Maximum 0-6 km bulk wind shear',
-        'min_melting_level': 'Minimum melting level height',
-        'min_temp_500': 'Minimum temperature at 500 hPa',
-        'max_cape': 'Maximum CAPE',
-        'min_cin': 'Minimum CIN',
-        'min_lapse_rate': 'Minimum 700 hPa to 500 hPa lapse rate',
-        'max_pw': 'Maximum precipitable water',
-        'max_updraft': 'Maximum updraft',
+        'min_ctt': 'Min. cloud top temp.',
+        'min_updraft_helicity': 'Min. updraft helicity',
+        'max_mdbz': 'Max. radar reflectivity',
+        'max_hail_diam': 'Max. hail diameter',
+        'max_graupel_max': 'Max. column-int. graupel',
+        'max_shear_magnitude': 'Max. 0-6 km bulk shear',
+        'min_melting_level': 'Min. melting level height',
+        'min_temp_500': 'Min. temp. at 500 hPa',
+        'max_cape': 'Max. CAPE',
+        'min_cin': 'Min. CIN',
+        'min_lapse_rate': 'Min. 700 to 500 hPa lapse rate',
+        'max_pw': 'Max. precipitable water',
+        'max_updraft': 'Max. updraft',
         'updraft_area': 'Updraft area',
+        'SIGSEV': 'CAPE x shear',
     }
 
     stats = xarray.Dataset(
@@ -751,6 +757,7 @@ def plot_extrema(
             'max_pw': maxes_stacked.pw,
             'max_updraft': maxes_stacked.max_updraft,
             'updraft_area': counts_stacked.updraft_area,
+            'SIGSEV': maxes_stacked.SIGSEV,
         },
     )
 
@@ -760,7 +767,7 @@ def plot_extrema(
     unit_renamer = {'degC': '$^{\circ}$C', 'kg m-2': 'km m$^{-2}$', 'm2 s-2': 'm$^2$ s$^{-2}$'}
 
     hail_cols = dict(enumerate(colours))
-    _, axs = plt.subplots(ncols=2, nrows=7, figsize=figsize, gridspec_kw={'hspace': 0.3, 'wspace': 0.05})
+    _, axs = plt.subplots(ncols=3, nrows=5, figsize=figsize, gridspec_kw={'hspace': 0.3, 'wspace': 0.5})
 
     for i, v in enumerate(plot_cols):
         sns.boxplot(
@@ -770,26 +777,26 @@ def plot_extrema(
             ax=axs.flat[i],
             hue=hail_flag,
             width=0.5,
-            legend=i == len(plot_cols) - 1,
+            legend=i == len(plot_cols) - 2,
             palette=hail_cols,
         )
         axs.flat[i].set_xlabel('')
 
-        col = (i % 2) + 1
-        row = (i // 2) + 1
+        col = (i % 3) + 1
+        row = (i // 3) + 1
 
-        if row != len(plot_cols) / 2:
+        if row != len(plot_cols) / 3:
             axs.flat[i].set_xticks([])
+        else:
+            for label in axs.flat[i].get_xticklabels():
+                label.set_rotation(45)
+                label.set_ha('right')
         axs.flat[i].set_title(plot_cols[v])
 
         u = stats[v].attrs['units']
         axs.flat[i].set_ylabel(unit_renamer.get(u, u))
 
-        if col == 2:  # noqa: PLR2004
-            axs.flat[i].yaxis.tick_right()
-            axs.flat[i].yaxis.set_label_position('right')
-
-    sns.move_legend(axs.flat[i], 'center', bbox_to_anchor=(0, -0.75), title=f'Surface hail ({hail_indicator})')
+    sns.move_legend(axs.flat[i-1], 'center', bbox_to_anchor=(0.5, -0.8), title=f'Surface hail ({hail_indicator})')
 
     if file is not None:
         plt.savefig(file, dpi=300, bbox_inches='tight')
