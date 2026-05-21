@@ -1,6 +1,8 @@
 {
     "number_detections": 61,
+    "hail_threshold": 20,
     "event_contained_hail_hailcast": 65,
     "event_contained_hail_micro": 74,
-    "hail_threshold": 20
+    "hailcast_damaging_cases": 45,
+    "mp_damaging_cases": 74
 }

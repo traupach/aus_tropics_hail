@@ -817,9 +817,9 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6, 4), file=None, damaging_th
     plt.show()
 
     hailcast_cases = int(
-        (spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hailcast_diam_max.max('timestep') >= damaging_threshold).sum().values,
+        (spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson'], domain='1 km').hailcast_diam_max.max('timestep') >= damaging_threshold).sum().values,
     )
-    mp_cases = int((spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson']).hail_maxk1.max('timestep') >= damaging_threshold).sum().values)
+    mp_cases = int((spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson'], domain='1 km').hail_maxk1.max('timestep') >= damaging_threshold).sum().values)
 
     return hailcast_cases, mp_cases
 
