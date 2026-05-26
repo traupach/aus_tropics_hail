@@ -289,8 +289,8 @@ def comp_profiles(
     varnames,
     time_slice=slice(None, None),
     figsize=(12, 12),
-    hail_colour='#EC18DE',
-    nohail_colour='#05A703',
+    hail_colour='#05A703',
+    nohail_colour='#EC18DE',
     file=None,
     factor=1,
     wspace=0.1,
@@ -322,15 +322,15 @@ def comp_profiles(
         mps = ['MY2', 'NSSL', 'Thompson', 'P3-3M']
 
     hail_config = {
-            'HAILCAST': (
-                'event_includes_hail_hailcast',
-                [],
-            ),
-            'microphysics': (
-                'event_includes_hail_micro',
-                ['P3-3M'],
-            ),
-        }
+        'HAILCAST': (
+            'event_includes_hail_hailcast',
+            [],
+        ),
+        'microphysics': (
+            'event_includes_hail_micro',
+            ['P3-3M'],
+        ),
+    }
 
     try:
         hail_flag, drop_mps = hail_config[hail_indicator]
@@ -342,8 +342,24 @@ def comp_profiles(
     v = [*variables, hail_flag]
     mps = [mp for mp in mps if mp not in drop_mps]
 
-    means = dat[v].sel(mp_scheme=mps).isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', hail_flag]).mean(numeric_only=True)
-    sds = dat[v].sel(mp_scheme=mps).isel(timestep=time_slice).to_dataframe().reset_index().groupby(['mp_scheme', 'pressure_level', hail_flag]).std(numeric_only=True)
+    means = (
+        dat[v]
+        .sel(mp_scheme=mps)
+        .isel(timestep=time_slice)
+        .to_dataframe()
+        .reset_index()
+        .groupby(['mp_scheme', 'pressure_level', hail_flag])
+        .mean(numeric_only=True)
+    )
+    sds = (
+        dat[v]
+        .sel(mp_scheme=mps)
+        .isel(timestep=time_slice)
+        .to_dataframe()
+        .reset_index()
+        .groupby(['mp_scheme', 'pressure_level', hail_flag])
+        .std(numeric_only=True)
+    )
 
     means = means.drop(columns=['timestep', 'event'])
     sds = sds.drop(columns=['timestep', 'event'])
@@ -431,8 +447,8 @@ def skew_T_comp(
     figsize=(12, 3),
     yticks=None,
     xticks=None,
-    hail_colour='#EC18DE',
-    nohail_colour='#05A703',
+    hail_colour='#05A703',
+    nohail_colour='#EC18DE',
     xlim=(-40, 38),
     ylim=(1000, 150),
     alpha=0.2,
@@ -457,6 +473,7 @@ def skew_T_comp(
         wspace: Width spacing for subplots.
         hspace: Height spacing for subplots.
         file: Output file to write.
+        hail_indicator: Use 'HAILCAST' or 'microphysics' to indicate hail?
 
     """
     if yticks is None:
@@ -626,6 +643,12 @@ def read_data(
         dat['SIGSEV'].attrs['description'] = 'CAPExS06 with MLCAPE over lowest 100 hPa'
         dat['SIGSEV'].attrs['units'] = 'm$^3$ s$^{-3}$'
 
+        # Calculate 600-300 hPa mean relative humidity in updrafts.
+        dat['RH_600_200_updraft'] = dat.rh_at_p.where(dat.w_at_p > 10).sel(pressure_level=slice(200, 600)).mean('pressure_level')  # noqa: PLR2004
+        dat['RH_600_200'] = dat.rh_at_p.sel(pressure_level=slice(200, 600)).mean('pressure_level')
+        for x in ['RH_600_200', 'RH_600_200_updraft']:
+            dat[x].attrs['units'] = '%'
+
         # Assign flags for whether hailcast or microphysics scheme saw hail.
         dat['event_includes_hail_hailcast'] = dat.hailcast_diam_max.max(['timestep', 'south_north', 'west_east']) >= hail_threshold
         dat['event_includes_hail_micro'] = dat.hail_maxk1.max(['timestep', 'south_north', 'west_east']) >= hail_threshold
@@ -676,8 +699,9 @@ def plot_extrema(
     mins,
     maxes,
     counts,
+    means,
     file=None,
-    figsize=(12, 12.5),
+    figsize=(12, 13),
     colours=None,
     hail_indicator='HAILCAST',
     p_val=0.01,
@@ -688,6 +712,7 @@ def plot_extrema(
         mins: Mins to plot.
         maxes: Maxes to plot.
         counts: Counts to plot.
+        means: Means to plot.
         file: Output file for plot.
         figsize: Figure size.
         colours: Colours for event hail flags.
@@ -697,7 +722,7 @@ def plot_extrema(
 
     """
     if colours is None:
-        colours = ['#EC18DE', '#05A703', '#1F77B4', '#FF7F0E']
+        colours = ['#EC18DE', '#05A703']
 
     hail_config = {
         'HAILCAST': (
@@ -723,9 +748,11 @@ def plot_extrema(
     mins_stacked = mins.stack({'sample': ['timestep', 'event']})  # noqa: PD013
     maxes_stacked = maxes.stack({'sample': ['timestep', 'event']})  # noqa: PD013
     counts_stacked = counts.stack({'sample': ['timestep', 'event']})  # noqa: PD013
+    means_stacked = means.stack({'sample': ['timestep', 'event']})  # noqa: PD013
 
     assert mins_stacked[hail_flag].equals(maxes_stacked[hail_flag]), 'Mismatch in hail flags'
     assert mins_stacked[hail_flag].equals(counts_stacked[hail_flag]), 'Mismatch in hail flags'
+    assert mins_stacked[hail_flag].equals(means_stacked[hail_flag]), 'Mismatch in hail flags'
     plot_cols = {
         'min_ctt': 'Min. cloud top temp.',
         'min_updraft_helicity': 'Min. updraft helicity',
@@ -741,7 +768,10 @@ def plot_extrema(
         'max_pw': 'Max. precipitable water',
         'max_updraft': 'Max. updraft',
         'updraft_area': 'Updraft area',
-        'SIGSEV': 'CAPE x shear',
+        'SIGSEV': 'Max. CAPE x shear',
+        'RH_600_200_max': 'Max. RH62',
+        'RH_600_200': 'Mean RH62',
+        'RH_600_200_updraft': 'Mean in-updraft RH62',
     }
 
     stats = xarray.Dataset(
@@ -762,6 +792,9 @@ def plot_extrema(
             'max_updraft': maxes_stacked.max_updraft,
             'updraft_area': counts_stacked.updraft_area,
             'SIGSEV': maxes_stacked.SIGSEV,
+            'RH_600_200_max': maxes_stacked.RH_600_200,
+            'RH_600_200': means_stacked.RH_600_200,
+            'RH_600_200_updraft': means_stacked.RH_600_200_updraft,
         },
     )
 
@@ -771,21 +804,23 @@ def plot_extrema(
     unit_renamer = {'degC': '$^{\circ}$C', 'kg m-2': 'kg m$^{-2}$', 'm2 s-2': 'm$^2$ s$^{-2}$'}
 
     hail_cols = dict(enumerate(colours))
-    _, axs = plt.subplots(ncols=3, nrows=5, figsize=figsize, gridspec_kw={'hspace': 0.3, 'wspace': 0.5})
+    _, axs = plt.subplots(ncols=3, nrows=6, figsize=figsize, gridspec_kw={'hspace': 0.3, 'wspace': 0.5})
 
     # Calculate p values for t-tests between hail and no hail samples on means per event (for independence).
     def ttests(g):
         exclude = ['timestep', 'event', 'mp_scheme', 'domain', 'hail_flag']
         test_cols = g.columns.difference(exclude)
 
-        return pd.Series({
-            col: ttest_ind(
-                g.loc[g[hail_flag], col],
-                g.loc[~g[hail_flag], col],
-                equal_var=False,
-            ).pvalue
-            for col in test_cols
-        })
+        return pd.Series(
+            {
+                col: ttest_ind(
+                    g.loc[g[hail_flag], col],
+                    g.loc[~g[hail_flag], col],
+                    equal_var=False,
+                ).pvalue
+                for col in test_cols
+            },
+        )
 
     event_stats = stats_table.groupby(['mp_scheme', 'domain', hail_flag, 'event']).mean().reset_index()
     pvals = event_stats.groupby('mp_scheme').apply(ttests, include_groups=False).reset_index()
@@ -794,7 +829,6 @@ def plot_extrema(
     hue_order = [False, True]
 
     for i, v in enumerate(plot_cols):
-
         sns.boxplot(
             stats_table,
             y=v,
@@ -804,17 +838,16 @@ def plot_extrema(
             width=0.5,
             order=order,
             hue_order=hue_order,
-            legend=i == len(plot_cols) - 2,
+            legend=i == len(plot_cols)-2,
             palette=hail_cols,
-            boxprops={'linewidth': 0.5,
-                      'edgecolor': 'black'},
+            boxprops={'linewidth': 0.5, 'edgecolor': 'black'},
             flierprops={'markersize': 4},
         )
         axs.flat[i].set_xlabel('')
 
         # Adjust colours depending on p values.
         boxes = [p for p in axs.flat[i].patches if isinstance(p, PathPatch)]
-        boxes = boxes[:len(order) * len(hue_order)]  # ignore any non-box patches
+        boxes = boxes[: len(order) * len(hue_order)]  # ignore any non-box patches
 
         for box in boxes:
             verts = box.get_path().vertices
@@ -841,7 +874,7 @@ def plot_extrema(
         u = stats[v].attrs['units']
         axs.flat[i].set_ylabel(unit_renamer.get(u, u))
 
-    sns.move_legend(axs.flat[i-1], 'center', bbox_to_anchor=(0.5, -0.8), title=f'Surface hail ({hail_indicator})')
+    sns.move_legend(axs.flat[i-1], 'lower center', bbox_to_anchor=(0.5, -1.3), title=f'Surface hail ({hail_indicator})')
 
     if file is not None:
         plt.savefig(file, dpi=300, bbox_inches='tight')
@@ -849,7 +882,7 @@ def plot_extrema(
     plt.show()
 
 
-def plot_surface_hailsizes(spatial_maxes, figsize=(6, 4), file=None, damaging_threshold=20, renamer=None, width=0.7):
+def plot_surface_hailsizes(spatial_maxes, file=None, damaging_threshold=20, renamer=None, width=0.7):
     """Plot a comparison of surface hail sizes using HAILCAST vs microphysics schemes.
 
     Args:
@@ -896,7 +929,7 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6, 4), file=None, damaging_th
     g.legend.set_title('MP scheme')
     g.fig.set_size_inches(10, 2.5)
     g.set_titles('{col_name}')
-    g.set(ylim=(-20, surface_hailsizes.value.max()*1.1))
+    g.set(ylim=(-20, surface_hailsizes.value.max() * 1.1))
 
     numbars = len(spatial_maxes.mp_scheme.values)
     for ax, d in zip(g.axes.flat, surface_hailsizes['domain'].unique()):
@@ -904,12 +937,8 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6, 4), file=None, damaging_th
             from_x = j - 0.5 * width
             for i, mp in enumerate(spatial_maxes.mp_scheme.values):
                 offset = i * width / numbars + (width / numbars / 2)
-                txt = damaging_events.loc[
-                        (damaging_events['mp_scheme'] == mp) &
-                        (damaging_events['domain'] == d), x].iloc[0]
-                any_txt = damaging_events.loc[
-                        (damaging_events['mp_scheme'] == mp) &
-                        (damaging_events['domain'] == d), f'any_hail_{x}'].iloc[0]
+                txt = damaging_events.loc[(damaging_events['mp_scheme'] == mp) & (damaging_events['domain'] == d), x].iloc[0]
+                any_txt = damaging_events.loc[(damaging_events['mp_scheme'] == mp) & (damaging_events['domain'] == d), f'any_hail_{x}'].iloc[0]
                 if any_txt != 0:
                     ax.text(x=from_x + offset, y=-15, ha='center', s=txt)
 
@@ -919,9 +948,13 @@ def plot_surface_hailsizes(spatial_maxes, figsize=(6, 4), file=None, damaging_th
     plt.show()
 
     hailcast_cases = int(
-        (spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson'], domain='1 km').hailcast_diam_max.max('timestep') >= damaging_threshold).sum().values,
+        (spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson'], domain='1 km').hailcast_diam_max.max('timestep') >= damaging_threshold)
+        .sum()
+        .values,
     )
-    mp_cases = int((spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson'], domain='1 km').hail_maxk1.max('timestep') >= damaging_threshold).sum().values)
+    mp_cases = int(
+        (spatial_maxes.sel(mp_scheme=['MY2', 'NSSL', 'Thompson'], domain='1 km').hail_maxk1.max('timestep') >= damaging_threshold).sum().values,
+    )
 
     return hailcast_cases, mp_cases
 
