@@ -15,11 +15,12 @@ import xarray
 from cartopy.mpl.geoaxes import GeoAxes
 from matplotlib import gridspec
 from matplotlib.lines import Line2D
-from matplotlib.patches import Patch, Polygon
+from matplotlib.patches import Patch, PathPatch, Polygon
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from metpy.plots import SkewT
 from metpy.units import units
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from scipy.stats import ttest_ind
 
 
 def sim_directory(lat, lon, year, month, day, hour, minute, sims_dir):  # noqa: D103
@@ -679,6 +680,7 @@ def plot_extrema(
     figsize=(12, 12.5),
     colours=None,
     hail_indicator='HAILCAST',
+    p_val=0.01,
 ):
     """Plot distributions of mins and maxes.
 
@@ -690,6 +692,8 @@ def plot_extrema(
         figsize: Figure size.
         colours: Colours for event hail flags.
         hail_indicator: either 'HAILCAST' or 'microphysics'.
+        p_val: Required maximum p value to consider two distributions
+               significantly different using a t-test.
 
     """
     if colours is None:
@@ -764,12 +768,33 @@ def plot_extrema(
     stats = stats.sel(mp_scheme=[mp for mp in stats.mp_scheme.values if mp not in drop_mps])
 
     stats_table = stats.unstack().to_dataframe().reset_index()
-    unit_renamer = {'degC': '$^{\circ}$C', 'kg m-2': 'km m$^{-2}$', 'm2 s-2': 'm$^2$ s$^{-2}$'}
+    unit_renamer = {'degC': '$^{\circ}$C', 'kg m-2': 'kg m$^{-2}$', 'm2 s-2': 'm$^2$ s$^{-2}$'}
 
     hail_cols = dict(enumerate(colours))
     _, axs = plt.subplots(ncols=3, nrows=5, figsize=figsize, gridspec_kw={'hspace': 0.3, 'wspace': 0.5})
 
+    # Calculate p values for t-tests between hail and no hail samples on means per event (for independence).
+    def ttests(g):
+        exclude = ['timestep', 'event', 'mp_scheme', 'domain', 'hail_flag']
+        test_cols = g.columns.difference(exclude)
+
+        return pd.Series({
+            col: ttest_ind(
+                g.loc[g[hail_flag], col],
+                g.loc[~g[hail_flag], col],
+                equal_var=False,
+            ).pvalue
+            for col in test_cols
+        })
+
+    event_stats = stats_table.groupby(['mp_scheme', 'domain', hail_flag, 'event']).mean().reset_index()
+    pvals = event_stats.groupby('mp_scheme').apply(ttests, include_groups=False).reset_index()
+
+    order = list(pd.unique(stats_table['mp_scheme']))
+    hue_order = [False, True]
+
     for i, v in enumerate(plot_cols):
+
         sns.boxplot(
             stats_table,
             y=v,
@@ -777,12 +802,32 @@ def plot_extrema(
             ax=axs.flat[i],
             hue=hail_flag,
             width=0.5,
+            order=order,
+            hue_order=hue_order,
             legend=i == len(plot_cols) - 2,
             palette=hail_cols,
+            boxprops={'linewidth': 0.5,
+                      'edgecolor': 'black'},
+            flierprops={'markersize': 4},
         )
         axs.flat[i].set_xlabel('')
 
-        col = (i % 3) + 1
+        # Adjust colours depending on p values.
+        boxes = [p for p in axs.flat[i].patches if isinstance(p, PathPatch)]
+        boxes = boxes[:len(order) * len(hue_order)]  # ignore any non-box patches
+
+        for box in boxes:
+            verts = box.get_path().vertices
+            x_center = np.mean(verts[:, 0])
+            mp_idx = int(round(x_center))
+
+            if 0 <= mp_idx < len(order):
+                mp = order[mp_idx]
+                p = float(pvals.loc[pvals['mp_scheme'] == mp, v].iat[0])  # noqa: PD009
+                if pd.notna(p) and p >= p_val:
+                    box.set_hatch('xxx')
+
+        # col = (i % 3) + 1
         row = (i // 3) + 1
 
         if row != len(plot_cols) / 3:
