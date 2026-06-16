@@ -1,11 +1,16 @@
 """Functions to help with investigating simulations of hail in northern Australia."""
 
+import io
 import math
 import os
+import re
 import shutil
+import glob
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import cmocean
+import colorcet as cc
 import matplotlib.pyplot as plt
 import metpy.calc as mpcalc
 import numpy as np
@@ -13,13 +18,16 @@ import pandas as pd
 import seaborn as sns
 import xarray
 from cartopy.mpl.geoaxes import GeoAxes
+from IPython.display import HTML
 from matplotlib import gridspec
+from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch, PathPatch, Polygon
-from matplotlib.ticker import MaxNLocator, ScalarFormatter
+from matplotlib.ticker import FuncFormatter, MaxNLocator, ScalarFormatter
 from metpy.plots import SkewT
 from metpy.units import units
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from PIL import Image
 from scipy.stats import ttest_ind
 
 
@@ -838,7 +846,7 @@ def plot_extrema(
             width=0.5,
             order=order,
             hue_order=hue_order,
-            legend=i == len(plot_cols)-2,
+            legend=i == len(plot_cols) - 2,
             palette=hail_cols,
             boxprops={'linewidth': 0.5, 'edgecolor': 'black'},
             flierprops={'markersize': 4},
@@ -874,7 +882,7 @@ def plot_extrema(
         u = stats[v].attrs['units']
         axs.flat[i].set_ylabel(unit_renamer.get(u, u))
 
-    sns.move_legend(axs.flat[i-1], 'lower center', bbox_to_anchor=(0.5, -1.3), title=f'Surface hail ({hail_indicator})')
+    sns.move_legend(axs.flat[i - 1], 'lower center', bbox_to_anchor=(0.5, -1.3), title=f'Damaging surface hail ({hail_indicator})')
 
     if file is not None:
         plt.savefig(file, dpi=300, bbox_inches='tight')
@@ -882,7 +890,7 @@ def plot_extrema(
     plt.show()
 
 
-def plot_surface_hailsizes(spatial_maxes, file=None, damaging_threshold=20, renamer=None, width=0.7):
+def plot_surface_hailsizes(spatial_maxes, file=None, damaging_threshold=20, renamer=None, width=0.7, max_y=None):
     """Plot a comparison of surface hail sizes using HAILCAST vs microphysics schemes.
 
     Args:
@@ -892,6 +900,7 @@ def plot_surface_hailsizes(spatial_maxes, file=None, damaging_threshold=20, rena
         damaging_threshold: Damaging hail threshold in mm.
         renamer: Rename variables?
         width: Width for bars.
+        max_y: Maximum y to show.
 
     """
     if renamer is None:
@@ -929,7 +938,7 @@ def plot_surface_hailsizes(spatial_maxes, file=None, damaging_threshold=20, rena
     g.legend.set_title('MP scheme')
     g.fig.set_size_inches(10, 2.5)
     g.set_titles('{col_name}')
-    g.set(ylim=(-20, surface_hailsizes.value.max() * 1.1))
+    g.set(ylim=(-20, surface_hailsizes.value.max() * 1.1 if max_y is None else max_y))
 
     numbars = len(spatial_maxes.mp_scheme.values)
     for ax, d in zip(g.axes.flat, surface_hailsizes['domain'].unique()):
@@ -1013,3 +1022,190 @@ def confusion_matrix(
 
     plt.show()
     return con
+
+
+def anim_event(dat_dir, anim_dir, figsize=(12, 7), refl_range=(20, 70), hail_range=(0, 60), time_slice=slice(-24, -12)):
+    """Animate an event output.
+
+    Args:
+        dat_dir: Directory to read data from.
+        figsize: _description_. Defaults to (12,7).
+        refl_range: Reflectivity range [dBZ].
+        hail_range: Hail size range [mm].
+        anim_dir: MP4 directory to output to.
+        time_slice: Slice in which hail detections are made.
+
+    """
+    m = re.search(
+        r'lat_([-+]?\d+\.\d+)_lon_([-+]?\d+\.\d+)_(\d{4}-\d{2}-\d{2}_\d{2}:\d{2})/WRF/(.+)',
+        dat_dir,
+    )
+
+    det_lat = float(m.group(1))
+    det_long = float(m.group(2))
+    det_time = m.group(3).replace('_', ' ')
+    mp_scheme = m.group(4)
+
+    if len(glob.glob(f'{anim_dir}/{det_time}_{mp_scheme}*')) != 0:
+        print('Skipping existing output.')
+        return
+
+    dat = xarray.open_mfdataset(
+        f'{dat_dir}/basic_params_d03*.nc',
+        combine='nested',
+        concat_dim='time',
+        coords='minimal',
+        compat='override',
+        join='exact',
+        parallel=False,
+        data_vars=['hailcast_diam_max', 'dbz', 'z', 'rh', 'w', 'latitude', 'longitude'],
+    )
+    dat = dat.chunk({'time': -1, 'south_north': -1, 'west_east': -1, 'bottom_top': -1}).load()
+    max_refl = dat.dbz.max('bottom_top').load()
+
+    slice_SN = dat['hailcast_diam_max'].isel(time=time_slice).max(['time', 'west_east']).argmax('south_north').load()  # noqa: N806
+    max_hail = dat['hailcast_diam_max'].isel(time=time_slice).max()
+
+    if max_hail.values == 0:
+        slice_SN = dat['dbz'].isel(time=time_slice).max(['time', 'west_east', 'bottom_top']).argmax('south_north').load()  # noqa: N806
+
+    hail_flag = max_hail > 20
+    hail_flag = 'Hail case' if hail_flag else 'No hail case'
+
+    title = f'{det_time}, {mp_scheme}, {hail_flag}'
+
+    dist2 = (dat.latitude.isel(time=0) - det_lat) ** 2 + (dat.longitude.isel(time=0) - det_long) ** 2
+    nearest = dist2.argmin(dim=['south_north', 'west_east'])
+    nearest_time = dat.sel(time=det_time, method='nearest').time.load()
+
+    def slice_to_ax(ax, ds, var, label, vmin=None, vmax=None, cmap='viridis', extend='neither'):
+        x2d = np.tile(ds['west_east'].values, (len(ds['bottom_top']), 1))
+        mesh = ax.pcolormesh(
+            x2d,
+            ds['z'].values,
+            ds[var].values,
+            shading='auto',
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+        )
+
+        ax.figure.colorbar(mesh, ax=ax, label=label, extend=extend)
+
+    figs = []
+    for t in max_refl.time.values:
+        fig = plt.figure(figsize=figsize)
+
+        gs = gridspec.GridSpec(6, 2, hspace=0.5, wspace=0.15)
+
+        rad = fig.add_subplot(gs[0:3, 0])
+        hail = fig.add_subplot(gs[3:6, 0])
+        section = fig.add_subplot(gs[0:2, 1])
+        wind = fig.add_subplot(gs[2:4, 1])
+        rh = fig.add_subplot(gs[4:6, 1])
+
+        # Max reflectivity.
+        max_refl.sel(time=t).plot(
+            ax=rad, vmin=refl_range[0], vmax=refl_range[1], cmap=cmocean.cm.rain, cbar_kwargs={'label': 'Reflectivity [dBZ]', 'extend': 'both'}
+        )
+        rad.set_box_aspect(1)
+
+        # Surface hail.
+        dat.sel(time=t).hailcast_diam_max.plot(
+            ax=hail, vmin=hail_range[0], vmax=hail_range[1], cmap=cmocean.cm.amp, cbar_kwargs={'label': 'Max. hail size [mm]', 'extend': 'max'}
+        )
+        hail.set_box_aspect(1)
+
+        # Slice of reflectivity.
+        slice_to_ax(
+            ax=section,
+            ds=dat.sel(time=t, south_north=slice_SN),
+            var='dbz',
+            vmin=refl_range[0],
+            vmax=refl_range[1],
+            label='Z [dBZ]',
+            cmap=cmocean.cm.rain,
+            extend='both',
+        )
+
+        # Slice of w.
+        slice_to_ax(
+            ax=wind,
+            ds=dat.sel(time=t, south_north=slice_SN),
+            var='w',
+            vmin=-10,
+            vmax=10,
+            label='Updraft [m s$^{-1}$]',
+            cmap=cc.cm['CET_D1'],
+            extend='both',
+        )
+
+        # Slice of RH.
+        slice_to_ax(ax=rh, ds=dat.sel(time=t, south_north=slice_SN), var='rh', vmin=0, vmax=100, label='RH [%]', cmap=cmocean.cm.haline)
+
+        # Titles.
+        rad.set_title('Reflectivity')
+        hail.set_title('Max. hail size')
+        section.set_title('Reflectivity slice')
+        rh.set_title('Relative humidity')
+        wind.set_title('Updraft')
+
+        # Ticks and labels.
+        for ax in [rad, section, wind]:
+            ax.set_xticks([])
+            rad.set_xlabel('')
+        rh.set_xlabel('West-east grid [km]')
+        hail.set_xlabel('West-east grid [km]')
+        for ax in [rad, hail]:
+            ax.set_ylabel('South-north grid [km]')
+        for ax in [section, wind, rh]:
+            ax.set_ylabel('Height [m]')
+
+        # Axis formatting.
+        for ax in [rh, section, wind]:
+            ax.yaxis.set_major_formatter(
+                FuncFormatter(lambda x, pos: f'{x / 1000:.0f}k'),  # noqa: ARG005
+            )
+
+        # Slice location.
+        rad.axhline(slice_SN, color='red', linestyle='--', linewidth=1)
+        hail.axhline(slice_SN, color='red', linestyle='--', linewidth=1)
+
+        # Detection location and time.
+        for ax in [rad, hail]:
+            ax.scatter(nearest['west_east'], nearest['south_north'], s=30, c='red')
+            if t == nearest_time:
+                ax.scatter(nearest['west_east'], nearest['south_north'], facecolors='none', s=120, edgecolors='red')
+
+        plt.close(fig)
+        fig.suptitle(title)
+        figs.append(fig)
+
+    def fig_to_rgb(fig, dpi=120):
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=dpi, bbox_inches='tight')
+        buf.seek(0)
+        img = Image.open(buf).convert('RGB')
+        return np.asarray(img)
+
+    # Render all figures to in-memory frames.
+    frames = [fig_to_rgb(fig) for fig in figs]
+
+    h, w = frames[0].shape[:2]
+    dpi = 100
+    fig_anim = plt.figure(figsize=(w / dpi, h / dpi), dpi=dpi)
+    plt.close(fig_anim)
+    ax = fig_anim.add_axes([0, 0, 1, 1])
+    ax.set_axis_off()
+    im = ax.imshow(frames[0], aspect='auto')
+
+    def update(k):
+        im.set_data(frames[k])
+        return (im,)
+
+    ani = FuncAnimation(fig_anim, update, frames=len(frames), interval=150, blit=True)
+
+    desc = 'nohail' if hail_flag == 'No hail case' else 'hail'
+    out_file = f'{anim_dir}/{det_time}_{mp_scheme}_{desc}.mp4'
+    print(f'Saving {out_file}')
+    ani.save(out_file, writer=FFMpegWriter(fps=7))
