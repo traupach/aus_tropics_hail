@@ -589,7 +589,7 @@ def skew_T_comp(
         skew.ax.set_xlim(xlim)
         skew.ax.set_ylim(ylim)
 
-        if i > 0:
+        if j > 0 and j % cols == 1:
             skew.ax.set_yticklabels([])
             skew.ax.set_ylabel('')
         
