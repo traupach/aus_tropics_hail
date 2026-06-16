@@ -452,7 +452,7 @@ def comp_profiles(
 def skew_T_comp(
     dat,
     time_slice=slice(None, None),
-    figsize=(12, 3),
+    figsize=(12, 10),
     yticks=None,
     xticks=None,
     hail_colour='#05A703',
@@ -463,6 +463,8 @@ def skew_T_comp(
     wspace=0.1,
     hspace=0.1,
     file=None,
+    cols=2,
+    rows=2,
     hail_indicator='HAILCAST',
 ):
     """Compare Skew_Ts per mp scheme.
@@ -508,6 +510,7 @@ def skew_T_comp(
         raise ValueError(msg) from exc
 
     mps = np.unique(dat.mp_scheme.values)
+    assert cols * rows <= len(mps), 'Not enough cols/rows.'
     hail_profs = dat.isel(timestep=time_slice).where(dat[hail_flag] == True)  # noqa: E712
     nohail_profs = dat.isel(timestep=time_slice).where(dat[hail_flag] == False)  # noqa: E712
 
@@ -515,9 +518,14 @@ def skew_T_comp(
     nohail_profs = nohail_profs.sel(mp_scheme=[mp for mp in nohail_profs.mp_scheme.values if mp not in drop_mps])
 
     fig = plt.figure(figsize=figsize)
-    gs = gridspec.GridSpec(1, len(mps) + 1, wspace=wspace, hspace=hspace)
+    gs = gridspec.GridSpec(rows, cols+1, wspace=wspace, hspace=hspace)
 
-    for i, mp in enumerate([mp for mp in mps if mp not in drop_mps]):
+    i = 0
+    j = 0
+    for mp in [mp for mp in mps if mp not in drop_mps]:
+        if j > 0 and j % cols == 0:
+            i = i+1
+
         skew = SkewT(fig, subplot=gs[i])
 
         p = hail_profs.pressure_level.values * units.hPa
@@ -584,6 +592,9 @@ def skew_T_comp(
         if i > 0:
             skew.ax.set_yticklabels([])
             skew.ax.set_ylabel('')
+        
+        i = i+1
+        j = j+1
 
     legend_elements = [
         Line2D([0], [0], color=hail_colour, label='H temp.'),
@@ -594,7 +605,7 @@ def skew_T_comp(
         Patch(facecolor=nohail_colour, label='NH std. dev.', alpha=alpha),
     ]
 
-    legend_ax = fig.add_subplot(gs[len(mps) : len(mps) + 1])
+    legend_ax = fig.add_subplot(gs[0:rows, cols])
     legend_ax.axis('off')
     legend_ax.legend(handles=legend_elements, loc='center')
 
