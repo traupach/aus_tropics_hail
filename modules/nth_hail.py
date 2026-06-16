@@ -461,7 +461,7 @@ def skew_T_comp(
     ylim=(1000, 150),
     alpha=0.2,
     wspace=0.1,
-    hspace=0.1,
+    hspace=0.05,
     file=None,
     cols=2,
     rows=2,
@@ -592,7 +592,11 @@ def skew_T_comp(
         if j > 0 and j % cols == 1:
             skew.ax.set_yticklabels([])
             skew.ax.set_ylabel('')
-        
+
+        if j < (cols * rows - cols):
+            skew.ax.set_xlabel('')
+            skew.ax.set_xticklabels([])
+
         i = i+1
         j = j+1
 
