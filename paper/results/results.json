@@ -1,6 +1,10 @@
 {
     "number_detections": 61,
     "hail_threshold": 20,
+    "agreement_hailcast_1km": 9,
+    "agreement_hailcast_3km": 0,
+    "agreement_micro_1km": 2,
+    "agreement_micro_3km": 0,
     "event_contained_hail_hailcast": 65,
     "event_contained_hail_micro": 74,
     "hailcast_damaging_cases": 45,
