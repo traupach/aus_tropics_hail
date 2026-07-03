@@ -641,8 +641,8 @@ funding from NASA's Earth Science Mission Directorate.
 \section*{Code and data availability}
 
 Code, scripts, WRF configuration files, and satellite-detection data used in
-this project are available on GitHub \citep{Raupach_software_2025} and archived
-on Zenodo \citep{Raupach_zenodo_2025} (the version used for this manuscript was
+this project are available on GitHub \citep{Raupach_software_2026} and archived
+on Zenodo \citep{Raupach_zenodo_2026} (the version used for this manuscript was
 v1.0.1).
 
 %Code, scripts, WRF configuration files, and satellite-detection data used in
