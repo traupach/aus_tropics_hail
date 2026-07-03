@@ -1,7 +1,7 @@
 % The "blind" option will make anonymous all author, affiliation, correspondence and funding information.
 % Use "num-refs" option for numerical citation and references style.
 % Use "alpha-refs" option for author-year citation and references style.
-\documentclass[alpha-refs]{wiley-article}
+\documentclass[alpha-refs,blind]{wiley-article}
 
 \usepackage{color}
 \usepackage{ulem}
@@ -629,33 +629,32 @@ versus microphysical processes in damaging-hail-producing storms in the tropics.
 
 \section*{Acknowledgements}
 
-This research was undertaken with the assistance of resources and services from
-the National Computational Infrastructure (NCI), which is supported by the
-Australian Government. Since March 2024, THR's position at UNSW Sydney is
-financially supported by QBE Insurance. JTA was supported by the U.S. National
-Science Foundation under Grant No. AGS—1945286. SDB's work was supported by
-funding from NASA's Earth Science Mission Directorate.
+%This research was undertaken with the assistance of resources and services from
+%the National Computational Infrastructure (NCI), which is supported by the
+%Australian Government. Since March 2024, THR's position at UNSW Sydney is
+%financially supported by QBE Insurance. JTA was supported by the U.S. National
+%Science Foundation under Grant No. AGS—1945286. SDB's work was supported by
+%funding from NASA's Earth Science Mission Directorate.
 
-%[ANONYMISED POSITION SUPPORT].
+[ANONYMISED POSITION SUPPORT].
 
 \section*{Code and data availability}
 
-Code, scripts, WRF configuration files, and satellite-detection data used in
-this project are available on GitHub \citep{Raupach_software_2026} and archived
-on Zenodo \citep{Raupach_zenodo_2026} (the version used for this manuscript was
-v1.0.1).
-
 %Code, scripts, WRF configuration files, and satellite-detection data used in
-%this project are available on GitHub and archived on Zenodo [ANONYMISED] (the
-%version used for this manuscript was v1.0.0). ERA5 forcing data are openly available \citep{ERA5_data, ERA5-Land_data}.
+%this project are available on GitHub \citep{Raupach_software_2026} and archived
+%on Zenodo \citep{Raupach_zenodo_2026} (the version used for this manuscript was
+%v1.0.1). ERA5 forcing data are openly available \citep{ERA5_data, ERA5-Land_data}.
+
+Code, scripts, WRF configuration files, and satellite-detection data used in
+this project are available on GitHub and archived on Zenodo [ANONYMISED] (the
+version used for this manuscript was v1.0.1). ERA5 forcing data are openly available \citep{ERA5_data, ERA5-Land_data}.
 
 \section*{Conflict of interest} 
 
-THR's position at UNSW Sydney is supported by QBE Insurance. SDB and JTA declare
-no conflict of interest.
+%THR's position at UNSW Sydney is supported by QBE Insurance. SDB and JTA declare
+%no conflict of interest.
 
-%[ANONYMISED] position is supported by [ANONYMISED]. [ANONYMISED] declares no
-%conflict of interest. 
+[ANONYMISED] position is supported by [ANONYMISED]. [ANONYMISED] and [ANONYMISED] declare no conflict of interest. 
 
 \printendnotes
 \bibliography{library}
